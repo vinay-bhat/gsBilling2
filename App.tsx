@@ -16,7 +16,9 @@ import {
   Alert,
   SafeAreaView,
   ActivityIndicator,
+  Image,
 } from 'react-native';
+import {PaperProvider} from 'react-native-paper';
 import 'react-native-gesture-handler';
 // navigation imports
 import {NavigationContainer, useNavigation} from '@react-navigation/native';
@@ -41,12 +43,14 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import SynchData from './src/Screens/SynchData';
 import BillReport from './src/Screens/BillReport';
 import NetInfo from '@react-native-community/netinfo';
+import RNFS from 'react-native-fs';
 
 import {onSync, syncCounterBill} from './src/Utils/synch';
 import SyncModal from './src/Modals/SyncModal';
 import useStore from './src/Redux/Store';
 
 const {NGXBillingModule} = NativeModules;
+const {IminWhitelist} = NativeModules;
 
 // creating stack navigator
 const Stack = createStackNavigator();
@@ -62,7 +66,27 @@ function App(): JSX.Element {
   useEffect(() => {
     creationSqlliteTable();
   }, []);
-
+  async function whitelistApp() {
+    try {
+      const success = await IminWhitelist.addToWhitelist();
+      if (success) {
+        console.log('✅ App added to iMin whitelist!');
+      } else {
+        console.log('⚠️ Failed to add app to whitelist.');
+      }
+    } catch (err: any) {
+      if (err.code === 'NO_PERMISSION') {
+        console.warn(
+          'Please enable "Modify system settings" permission manually.',
+        );
+      } else {
+        console.error('❌ Error adding to whitelist:', err.message);
+      }
+    }
+  }
+  useEffect(() => {
+    whitelistApp();
+  }, []);
   useEffect(() => {
     const unsubscribe = NetInfo.addEventListener((state: any) => {
       setNoInternet(state.isConnected);
@@ -72,6 +96,18 @@ function App(): JSX.Element {
       unsubscribe();
     };
   }, []);
+
+  const exportDatabase = async () => {
+    const dbPath = '/data/data/com.gsbilling/databases/pos.db';
+    const destPath = `${RNFS.DownloadDirectoryPath}/pos_exported.db`;
+
+    try {
+      await RNFS.copyFile(dbPath, destPath);
+      console.log('Database copied to:', destPath);
+    } catch (error) {
+      console.error('Error copying DB:', error);
+    }
+  };
 
   const DrawerNavigation = () => {
     const navigation = useNavigation();
@@ -97,9 +133,9 @@ function App(): JSX.Element {
               removeSession('loginData');
               AsyncStorage.removeItem('app-store');
               AsyncStorage.removeItem('initialDataLoaded');
-              for (const table of tableArray) {
-                truncateData(table.tableName);
-              }
+              // for (const table of tableArray) {
+              //   truncateData(table.tableName);
+              // }
               navigation.reset({
                 index: 0,
                 routes: [{name: 'Login' as never}],
@@ -199,9 +235,25 @@ function App(): JSX.Element {
       <ScrollView style={styles.drawerContainer}>
         {/* Header section */}
         <View style={styles.drawerHeader}>
-          <MaterialCommunityIcons name="store" size={48} color="#007AFF" />
+          <View style={styles.headerIconContainer}>
+            <MaterialCommunityIcons name="store" size={32} color="#007AFF" />
+          </View>
           <Text style={styles.headerTitle}>POS System</Text>
-          <Text style={styles.headerSubtitle}>Smart Billing</Text>
+          <Text style={styles.headerSubtitle}>Smart Billing Solution</Text>
+          <View style={styles.headerImageContainer}>
+            <View style={styles.logoContainer}>
+              <Image
+                source={require('./src/Assets/gsLogo.png')}
+                style={styles.headerImage}
+              />
+            </View>
+            <Text style={styles.headerLogoSubtitle}>Gravity Soft</Text>
+          </View>
+          <View style={styles.versionContainer}>
+            <TouchableWithoutFeedback onPress={exportDatabase}>
+              <Text style={styles.versionText}>Version 1.4</Text>
+            </TouchableWithoutFeedback>
+          </View>
         </View>
 
         {/* Drawer Items */}
@@ -237,29 +289,31 @@ function App(): JSX.Element {
   };
 
   return (
-    <NavigationContainer>
-      <Stack.Navigator
-        initialRouteName="Splash"
-        screenOptions={{animationEnabled: false, headerShown: false}}>
-        <Stack.Screen name="Splash" component={Splash} />
-        <Stack.Screen name="Login" component={Login} />
-        <Stack.Screen name="Dashboard" component={DrawerNavigation} />
-        <Stack.Screen name="Portrait" component={Portrait} />
-      </Stack.Navigator>
+    <PaperProvider>
+      <NavigationContainer>
+        <Stack.Navigator
+          initialRouteName="Splash"
+          screenOptions={{animationEnabled: false, headerShown: false}}>
+          <Stack.Screen name="Splash" component={Splash} />
+          <Stack.Screen name="Login" component={Login} />
+          <Stack.Screen name="Dashboard" component={DrawerNavigation} />
+          <Stack.Screen name="Portrait" component={Portrait} />
+        </Stack.Navigator>
 
-      {/* Sync Progress Modal */}
-      {isLoading && (
-        <View style={styles.loadingContainer}>
-          <View style={styles.syncModal}>
-            <ActivityIndicator size="large" color="#007AFF" />
-            <Text style={styles.syncText}>Sync in Progress</Text>
-            <Text style={styles.syncSubText}>
-              Please wait while data is being synchronized...
-            </Text>
+        {/* Sync Progress Modal */}
+        {isLoading && (
+          <View style={styles.loadingContainer}>
+            <View style={styles.syncModal}>
+              <ActivityIndicator size="large" color="#007AFF" />
+              <Text style={styles.syncText}>Sync in Progress</Text>
+              <Text style={styles.syncSubText}>
+                Please wait while data is being synchronized...
+              </Text>
+            </View>
           </View>
-        </View>
-      )}
-    </NavigationContainer>
+        )}
+      </NavigationContainer>
+    </PaperProvider>
   );
 }
 
@@ -352,21 +406,57 @@ const styles = StyleSheet.create({
   drawerHeader: {
     alignItems: 'center',
     justifyContent: 'center',
-    paddingVertical: 40,
-    backgroundColor: '#EAF2FF',
-    borderBottomLeftRadius: 20,
-    borderBottomRightRadius: 20,
+    paddingVertical: 10,
+    paddingHorizontal: 20,
+    backgroundColor: '#F0F4F8',
+    borderBottomLeftRadius: 25,
+    borderBottomRightRadius: 25,
+    shadowColor: '#000',
+    shadowOffset: {
+      width: 0,
+      height: 2,
+    },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+  },
+  headerIconContainer: {
+    width: 60,
+    height: 60,
+    borderRadius: 30,
+    backgroundColor: '#E3F2FD',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 15,
+    shadowColor: '#007AFF',
+    shadowOffset: {
+      width: 0,
+      height: 2,
+    },
+    shadowOpacity: 0.2,
+    shadowRadius: 4,
+    elevation: 3,
   },
   headerTitle: {
     fontFamily: fonts.NunitoSansBold,
-    fontSize: 20,
-    color: '#007AFF',
-    marginTop: 10,
+    fontSize: 24,
+    color: '#1A1A1A',
+    marginBottom: 5,
+    textAlign: 'center',
   },
   headerSubtitle: {
     fontFamily: fonts.NunitoSansRegular,
-    fontSize: 13,
-    color: '#555',
+    fontSize: 14,
+    color: '#666666',
+    marginBottom: 20,
+    textAlign: 'center',
+  },
+  headerLogoSubtitle: {
+    fontFamily: fonts.NunitoSansBold,
+    fontSize: 16,
+    color: '#1A1A1A',
   },
   drawerList: {
     paddingVertical: 10,
@@ -388,6 +478,59 @@ const styles = StyleSheet.create({
     fontFamily: fonts.NunitoSansRegular,
     marginLeft: 15,
     color: '#000',
+  },
+  headerImage: {
+    width: 40,
+    height: 40,
+  },
+  headerImageContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 15,
+  },
+  logoContainer: {
+    width: 50,
+    height: 50,
+    borderRadius: 25,
+    backgroundColor: '#E3F2FD',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 10,
+    shadowColor: '#007AFF',
+    shadowOffset: {
+      width: 0,
+      height: 1,
+    },
+    shadowOpacity: 0.15,
+    shadowRadius: 2,
+    elevation: 2,
+  },
+  versionContainer: {
+    backgroundColor: '#E3F2FD',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 15,
+  },
+  versionText: {
+    fontFamily: fonts.NunitoSansRegular,
+    fontSize: 12,
+    color: '#007AFF',
+    textAlign: 'center',
+  },
+  headerPattern: {
+    position: 'absolute',
+    top: 15,
+    right: 20,
+    flexDirection: 'row',
+    gap: 4,
+  },
+  patternDot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+    backgroundColor: '#007AFF',
+    opacity: 0.3,
   },
 });
 

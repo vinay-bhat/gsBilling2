@@ -8,6 +8,7 @@ import {
   Text,
   TouchableOpacity,
   ScrollView,
+  Pressable,
 } from 'react-native';
 import Loader from '../Components/Loader';
 import useStore from '../Redux/Store';
@@ -255,7 +256,7 @@ const Portrait = (props: any) => {
                   (cartItem: any) => cartItem.pr_id === item.pr_id,
                 );
                 return (
-                  <TouchableOpacity
+                  <Pressable
                     key={item.pr_id}
                     onPress={() => props.handleAddToCart(item)}
                     style={[
@@ -286,7 +287,7 @@ const Portrait = (props: any) => {
                         </View>
                       )}
                     </View>
-                  </TouchableOpacity>
+                  </Pressable>
                 );
               }}
               keyExtractor={(item: any) => item.pr_id}
@@ -319,8 +320,7 @@ const Portrait = (props: any) => {
                 {/* First Row */}
                 <View style={portraitStyles.categoryRow}>
                   {firstRowCategories.map((item: any) => (
-                    <TouchableOpacity
-                      activeOpacity={0.7}
+                    <Pressable
                       key={`row1-${item.pr_cat_code}`}
                       style={[
                         portraitStyles.categoryButton,
@@ -339,15 +339,14 @@ const Portrait = (props: any) => {
                         ]}>
                         {item.pr_cat_name}
                       </Text>
-                    </TouchableOpacity>
+                    </Pressable>
                   ))}
                 </View>
 
                 {/* Second Row */}
                 <View style={portraitStyles.categoryRow}>
                   {secondRowCategories.map((item: any) => (
-                    <TouchableOpacity
-                      activeOpacity={0.7}
+                    <Pressable
                       key={`row2-${item.pr_cat_code}`}
                       style={[
                         portraitStyles.categoryButton,
@@ -366,7 +365,7 @@ const Portrait = (props: any) => {
                         ]}>
                         {item.pr_cat_name}
                       </Text>
-                    </TouchableOpacity>
+                    </Pressable>
                   ))}
                 </View>
               </View>

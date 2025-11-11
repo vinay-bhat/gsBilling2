@@ -1,14 +1,14 @@
-import { Alert } from "react-native";
-import { db } from "./Sqlitecreation";
-import { insertQuerry } from "./SqlliteTable";
+import {Alert} from 'react-native';
+import {db} from './Sqlitecreation';
+import {insertQuerry} from './SqlliteTable';
 
 export const inserData = async (tableName: string, value: any) => {
   let data: any[] = [];
-  let querry: string = "";
+  let querry: string = '';
   let bii_id: any;
 
   switch (tableName) {
-    case "product_category":
+    case 'product_category':
       querry = insertQuerry.InsertProductCategory;
       data = [
         value.branch,
@@ -22,7 +22,7 @@ export const inserData = async (tableName: string, value: any) => {
         value.status,
       ];
       break;
-    case "products":
+    case 'products':
       querry = insertQuerry.InsertProductsList;
       data = [
         value.pr_id,
@@ -56,7 +56,7 @@ export const inserData = async (tableName: string, value: any) => {
         value.product_image_path,
       ];
       break;
-    case "application_settings":
+    case 'application_settings':
       querry = insertQuerry.InsertAppSettings;
       data = [
         value.app_setting_id,
@@ -68,7 +68,7 @@ export const inserData = async (tableName: string, value: any) => {
         value.branch,
       ];
       break;
-    case "masters_creation":
+    case 'masters_creation':
       querry = insertQuerry.InsertMaster;
       data = [
         value.masterId,
@@ -79,7 +79,7 @@ export const inserData = async (tableName: string, value: any) => {
         value.master_image_path,
       ];
       break;
-    case "Santhe_products":
+    case 'Santhe_products':
       querry = insertQuerry.InsertSanteProducts;
       data = [
         value.pr_id,
@@ -113,7 +113,7 @@ export const inserData = async (tableName: string, value: any) => {
         value.product_image_path,
       ];
       break;
-    case "credit_customers":
+    case 'credit_customers':
       querry = insertQuerry.InsertCustomers;
       data = [
         value.cust_id,
@@ -126,7 +126,7 @@ export const inserData = async (tableName: string, value: any) => {
       ];
       break;
 
-    case "outlet_details":
+    case 'outlet_details':
       querry = insertQuerry.InserOutlets;
       data = [
         value.outId,
@@ -147,7 +147,7 @@ export const inserData = async (tableName: string, value: any) => {
         value.status,
       ];
       break;
-    case "user":
+    case 'user':
       querry = insertQuerry.InsertUsers;
       data = [
         value.userId,
@@ -164,7 +164,7 @@ export const inserData = async (tableName: string, value: any) => {
       ];
       break;
 
-    case "counter_bills":
+    case 'counter_bills':
       querry = insertQuerry.InsertCounterBills;
       data = [
         value.bill_id,
@@ -240,9 +240,10 @@ export const inserData = async (tableName: string, value: any) => {
       ];
 
       break;
-    case "counter_items":
+    case 'counter_items':
       querry = insertQuerry.InsertCounterItems;
       data = [
+        value.item_id,
         value.cat_name,
         value.product_name,
         value.hsn_code,
@@ -276,9 +277,10 @@ export const inserData = async (tableName: string, value: any) => {
       ];
 
       break;
-    case "counter_payments":
+    case 'counter_payments':
       querry = insertQuerry.InsertCounterPayments;
       data = [
+        value.payment_id,
         value.payment_date,
         value.payment_types,
         value.multi_payment,
@@ -289,7 +291,7 @@ export const inserData = async (tableName: string, value: any) => {
         value.paid_amount,
       ];
       break;
-    case "sante_bills":
+    case 'sante_bills':
       querry = insertQuerry.InsertSanteBills;
       data = [
         value.bill_id,
@@ -309,7 +311,7 @@ export const inserData = async (tableName: string, value: any) => {
         value.sync_status,
       ];
       break;
-    case "sante_items":
+    case 'sante_items':
       querry = insertQuerry.InsertSanteItems;
       data = [
         value.item_id,
@@ -328,12 +330,12 @@ export const inserData = async (tableName: string, value: any) => {
         value.branch_name,
       ];
       break;
-    case "sante_discounts":
+    case 'sante_discounts':
       querry = insertQuerry.InsertSanteDiscounts;
       data = [value.item_id, value.item_qty, value.bill_id, value.branch_name];
       break;
     default:
-      console.log("Default action performed!");
+      console.log('Default action performed!');
   }
   // console.log("SQL INSERT", tableName,data);
   try {
@@ -344,34 +346,34 @@ export const inserData = async (tableName: string, value: any) => {
           data,
           (tx: any, results: any) => {
             if (results.rowsAffected > 0) {
-              console.log("SQL INSERT", tableName, data);
-              if (tableName === "counter_bills" || tableName == "sante_items") {
+              console.log('SQL INSERT', tableName, data);
+              if (tableName === 'counter_bills' || tableName == 'sante_items') {
                 bii_id = results.insertId;
-                console.log("results.insertId", results.insertId);
-                console.log("results.insertId", results);
+                console.log('results.insertId', results.insertId);
+                console.log('results.insertId', results);
 
                 resolve(bii_id);
               } else {
                 resolve();
               }
             } else {
-              reject(new Error("Registration Failed"));
+              reject(new Error('Registration Failed'));
             }
           },
           (error: any) => {
             reject(error);
-          }
+          },
         );
       });
     });
   } catch (error) {
-    console.error("store sql err", tableName, error);
+    console.error('store sql err', tableName, error);
   }
 
   if (
-    tableName === "counter_bills" ||
-    tableName === "sante_bills" ||
-    tableName == "sante_items"
+    tableName === 'counter_bills' ||
+    tableName === 'sante_bills' ||
+    tableName == 'sante_items'
   ) {
     return bii_id;
   }
@@ -380,7 +382,7 @@ export const inserData = async (tableName: string, value: any) => {
 export const updateStatusById = async (
   tableName: string,
   id: number,
-  newStatus: string = "Done"
+  newStatus: string = 'Done',
 ): Promise<void> => {
   try {
     await new Promise<void>((resolve, reject) => {
@@ -392,16 +394,16 @@ export const updateStatusById = async (
             if (results.rowsAffected > 0) {
               console.log(
                 `SQL UPDATE ${tableName}`,
-                `Updated status to ${newStatus} for ID ${id}`
+                `Updated status to ${newStatus} for ID ${id}`,
               );
               resolve();
             } else {
-              reject(new Error("Update Failed: No rows affected"));
+              reject(new Error('Update Failed: No rows affected'));
             }
           },
           (error: any) => {
             reject(error);
-          }
+          },
         );
       });
     });
@@ -413,17 +415,17 @@ export const updateStatusById = async (
 export async function batchUpdateStatusById(
   tableName: string,
   billIds: any,
-  newStatus: string
+  newStatus: string,
 ) {
   try {
     if (!billIds || billIds.length === 0) {
-      console.warn("No bill IDs provided for batch update");
-      return { success: false, updated: 0 };
+      console.warn('No bill IDs provided for batch update');
+      return {success: false, updated: 0};
     }
 
     // Create placeholders for parameterized query
-    const placeholders = billIds.map(() => "?").join(",");
-    console.log(placeholders, "placeholders");
+    const placeholders = billIds.map(() => '?').join(',');
+    console.log(placeholders, 'placeholders');
     const query = `
       UPDATE ${tableName} 
       SET sync_status = ?
@@ -448,16 +450,16 @@ export async function batchUpdateStatusById(
             if (results.rowsAffected > 0) {
               console.log(
                 `SQL UPDATE ${tableName}`,
-                `Updated status to ${newStatus} for ID ${[...billIds]}`
+                `Updated status to ${newStatus} for ID ${[...billIds]}`,
               );
               resolve();
             } else {
-              reject(new Error("Update Failed: No rows affected"));
+              reject(new Error('Update Failed: No rows affected'));
             }
           },
           (error: any) => {
             reject(error);
-          }
+          },
         );
       });
     });
@@ -472,7 +474,7 @@ export async function batchUpdateStatusById(
       billIds: billIds,
     };
   } catch (error: any) {
-    console.error("Batch update failed:", error);
+    console.error('Batch update failed:', error);
     return {
       success: false,
       error: error.message,

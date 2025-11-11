@@ -5,6 +5,7 @@ import {
   Image,
   TouchableOpacity,
   NativeModules,
+  Pressable,
 } from 'react-native';
 import React, {Component, useEffect, useState} from 'react';
 import {DrawerActions} from '@react-navigation/native';
@@ -110,9 +111,7 @@ const PortraitHeader = ({
           <MaterialCommunityIcons name="cart" size={25} color="#005e9e" />
           <Text>{cartList.length}</Text>
         </TouchableOpacity> */}
-        <TouchableOpacity
-          style={styles.cartButton}
-          onPress={() => setOpenCart(true)}>
+        <Pressable style={styles.cartButton} onPress={() => setOpenCart(true)}>
           <MaterialCommunityIcons name="cart" size={20} color="#FFFFFF" />
           <Text style={styles.cartButtonText}>Cart</Text>
           {cartList.length > 0 && (
@@ -122,7 +121,7 @@ const PortraitHeader = ({
               </Text>
             </View>
           )}
-        </TouchableOpacity>
+        </Pressable>
       </View>
     </View>
   );

@@ -935,6 +935,10 @@ const Dashboard = () => {
       'in_no',
     ]);
 
+    let {item_id} = await getLastValues('counter_items', ['item_id']);
+
+    let {payment_id} = await getLastValues('counter_payments', ['payment_id']);
+
     const financialYear = getCurrentFinancialYear();
 
     const payment = [];
@@ -950,6 +954,7 @@ const Dashboard = () => {
             payment_status: 'pending',
             paid_amount: 0,
             bill_id: 0,
+            payment_id: 0,
           };
           console.log('multiPayment', amount, obj);
           payment.push(obj);
@@ -965,6 +970,7 @@ const Dashboard = () => {
         payment_status: 'pending',
         paid_amount: 0,
         bill_id: 0,
+        payment_id: 0,
       };
       payment.push(obj);
     }
@@ -979,6 +985,32 @@ const Dashboard = () => {
         in_no = parseInt(data?.counter_bill_id);
       } else {
         in_no = 0;
+      }
+    }
+
+    if (item_id == null || item_id == undefined) {
+      const response: any = await getSession('loginData');
+      const data = JSON.parse(response);
+      if (
+        data?.counter_item_id !== null &&
+        data?.counter_item_id !== undefined
+      ) {
+        item_id = parseInt(data?.counter_item_id);
+      } else {
+        item_id = 0;
+      }
+    }
+
+    if (payment_id == null || payment_id == undefined) {
+      const response: any = await getSession('loginData');
+      const data = JSON.parse(response);
+      if (
+        data?.counter_payment_id !== null &&
+        data?.counter_payment_id !== undefined
+      ) {
+        payment_id = parseInt(data?.counter_payment_id);
+      } else {
+        payment_id = 0;
       }
     }
 
@@ -1072,10 +1104,12 @@ const Dashboard = () => {
     if (billId !== null && billId !== undefined) {
       try {
         // Process items sequentially
-        for (const item of cartList) {
+        for (let index = 0; index < cartList.length; index++) {
+          const item = cartList[index];
           const data = transformItem2(
             item,
             billId,
+            item_id + index,
             discountType,
             selectedDiscount,
             isDiscountApplied,
@@ -1086,6 +1120,7 @@ const Dashboard = () => {
 
         // Process payments sequentially
         for (const pay of payment) {
+          pay.payment_id = parseInt(payment_id) + 1;
           pay.bill_id = billId;
           payments.push(pay);
           await inserData('counter_payments', pay);
@@ -1325,6 +1360,11 @@ const Dashboard = () => {
       multi_card: ' 0.0',
       multi_cash: ' 0.0',
       multi_phonepay: ' 0.0',
+    });
+    setNcModalData({
+      nc_cust_name: '',
+      nc_cust_phone: '',
+      nc_approved_by: '',
     });
   };
 

@@ -7,7 +7,7 @@ import {
   ToastAndroid,
   TouchableOpacity,
 } from 'react-native';
-import {useEffect, useState} from 'react';
+import {useEffect, useRef, useState} from 'react';
 import {onSync, syncCounterBill} from '../Utils/synch';
 
 import NetInfo from '@react-native-community/netinfo';
@@ -32,6 +32,13 @@ const SynchData = (props: any) => {
     onConfirm: null as (() => void) | null,
   });
   const {user, dayCLoseButton, setDayCLoseButton} = useStore();
+
+  const [isPrinting, setIsPrinting] = useState(false);
+  const isPrintingRef = useRef(false);
+  const [, forceUpdate] = useState({});
+  const lastClickTime = useRef(0);
+  const lockTimeoutRef = useRef<any>(null);
+  const DEBOUNCE_DELAY = 2000; // 1 second debounce
 
   const isFocused = useIsFocused();
 
@@ -95,48 +102,91 @@ const SynchData = (props: any) => {
   }, [isFocused]);
 
   const onSynchHandler = () => {
-    setIsLoading(true);
-    onSync(
-      noInternet,
-      setSyncErr,
-      setIsLoading,
-      user,
-      setSyncDone,
-      (success: boolean, results: any) => {
-        console.log('Sync complete', success, results);
-        if (success) {
-          setCounterBills(0);
-          setDayCLoseButton(true);
-          setIsLoading(false);
-          showAlert('Complete', 'Sync complete', 'success');
-        } else {
-          showAlert('Failed', 'Sync failed', 'error');
-          setIsLoading(false);
-          setDayCLoseButton(false);
-        }
-      },
-    );
+    debouncedSynchHandler(async () => {
+      setIsLoading(true);
+      onSync(
+        noInternet,
+        setSyncErr,
+        setIsLoading,
+        user,
+        setSyncDone,
+        (success: boolean, results: any) => {
+          console.log('Sync complete', success, results);
+          if (success) {
+            setCounterBills(0);
+            setDayCLoseButton(true);
+            setIsLoading(false);
+            showAlert('Complete', 'Sync complete', 'success');
+          } else {
+            showAlert('Failed', 'Sync failed', 'error');
+            setIsLoading(false);
+            setDayCLoseButton(false);
+          }
+        },
+      );
+    });
+  };
+
+  const debouncedSynchHandler = (handler: () => void) => {
+    const now = Date.now();
+    const timeSinceLastClick = now - lastClickTime.current;
+
+    console.log('Time since last click:', timeSinceLastClick);
+    console.log('isPrintingRef.current:', isPrintingRef.current);
+
+    // Multiple protection layers
+    if (isPrintingRef.current) {
+      console.log('Print already in progress, ignoring duplicate request');
+      return;
+    }
+
+    if (timeSinceLastClick < DEBOUNCE_DELAY) {
+      console.log('Too soon since last click, ignoring request');
+      return;
+    }
+
+    // Clear any existing timeout
+    if (lockTimeoutRef.current) {
+      clearTimeout(lockTimeoutRef.current);
+    }
+
+    lastClickTime.current = now;
+    isPrintingRef.current = true;
+    setIsPrinting(true);
+    forceUpdate({});
+
+    // Set a timeout lock as additional protection
+    lockTimeoutRef.current = setTimeout(() => {
+      isPrintingRef.current = false;
+      setIsPrinting(false);
+      forceUpdate({});
+    }, DEBOUNCE_DELAY);
+
+    handler();
   };
 
   const dayCloseHandler = async () => {
-    const response = await sendPostRequest(
-      user.sales_urls[0].day_closebuttonclick,
-    );
-    if (response) {
-      showAlert(
-        'Success',
-        'Day Close successful, \n\nTotal Bill Amount: ' + response.total_sales,
-        'success',
+    debouncedSynchHandler(async () => {
+      const response = await sendPostRequest(
+        user.sales_urls[0].day_closebuttonclick,
       );
-      setDayCLoseButton(false);
-      setSyncDone(true);
-      setSyncErr(false);
-    } else {
-      showAlert('Failed', 'Day Close failed', 'error');
-      setDayCLoseButton(true);
-      setSyncDone(false);
-      setSyncErr(true);
-    }
+      if (response) {
+        showAlert(
+          'Success',
+          'Day Close successful, \n\nTotal Bill Amount: ' +
+            response.total_sales,
+          'success',
+        );
+        setDayCLoseButton(false);
+        setSyncDone(true);
+        setSyncErr(false);
+      } else {
+        showAlert('Failed', 'Day Close failed', 'error');
+        setDayCLoseButton(true);
+        setSyncDone(false);
+        setSyncErr(true);
+      }
+    });
   };
 
   return (
@@ -173,10 +223,11 @@ const SynchData = (props: any) => {
         {dayCLoseButton && (
           <TouchableOpacity
             onPress={dayCloseHandler}
-            disabled={counterBills !== 0}
+            disabled={counterBills !== 0 || isPrintingRef.current || isPrinting}
             style={[
               styles.dayCloseButton,
-              (counterBills !== 0 || isLoading) && styles.syncButtonDisabled,
+              (counterBills !== 0 || isPrintingRef.current || isPrinting) &&
+                styles.syncButtonDisabled,
             ]}>
             <Text style={styles.syncButtonText}>Day Close</Text>
           </TouchableOpacity>

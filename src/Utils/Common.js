@@ -1,15 +1,15 @@
-import { Dimensions } from "react-native";
+import {Dimensions} from 'react-native';
 export const COUNTER_API =
-  "https://taazamithai.com/SalesMaster/index.php/Counter_billingapp_controller/get_client_countupdation/TM5";
+  'https://taazamithai.com/SalesMaster/index.php/Counter_billingapp_controller/get_client_countupdation/TM5';
 
 export const apiUrlMapping = {
-  application_count: "application_settings",
-  masters_count: "masters_creation",
-  creditcustomer_count: "credit_customers",
-  outlet_count: "outlet_details",
-  category_count: "product_catgory",
-  product_count: "products",
-  user_count: "users",
+  application_count: 'application_settings',
+  masters_count: 'masters_creation',
+  creditcustomer_count: 'credit_customers',
+  outlet_count: 'outlet_details',
+  category_count: 'product_catgory',
+  product_count: 'products',
+  user_count: 'users',
 };
 // export const getCurrentDatTime =()=>{
 //   const currentDate = new Date();
@@ -33,17 +33,17 @@ export const apiUrlMapping = {
 export const getCurrentDatTime = () => {
   const currentDate = new Date();
   // Format date as yyyy-mm-dd
-  const dateISO = currentDate.toISOString().split("T")[0]; // This will give you the yyyy-mm-dd format directly
-  const [year, month, day] = dateISO.split("-");
+  const dateISO = currentDate.toISOString().split('T')[0]; // This will give you the yyyy-mm-dd format directly
+  const [year, month, day] = dateISO.split('-');
   const date = `${day}-${month}-${year}`;
   // Format time in 12-hour format with AM/PM
   const time = currentDate
-    .toLocaleTimeString("en-US", {
+    .toLocaleTimeString('en-US', {
       hour12: true, // Use 12-hour format
-      hour: "2-digit",
-      minute: "2-digit",
+      hour: '2-digit',
+      minute: '2-digit',
     })
-    .replace(/\s(AM|PM)/, "$1");
+    .replace(/\s(AM|PM)/, '$1');
 
   return {
     date: date,
@@ -56,7 +56,7 @@ export const transformItem = (item, billId) => {
   const transformedItem = {
     cat_name: item.pr_cat_id,
     product_name: item.product_name,
-    hsn_code: item.hsn_code || "0",
+    hsn_code: item.hsn_code || '0',
     uom: item.uom,
     basic_rate: parseFloat(item.basic_rate) * item.qty,
     tax_percentage: parseFloat(item.basic_tax_percent),
@@ -75,17 +75,17 @@ export const transformItem = (item, billId) => {
     cgst_tax_amount: parseFloat(item.cgst_tax_amount),
     item_tax_amt: item.item_tax_amt,
     total_price: parseFloat(item.price) * item.qty,
-    bill_status: "closed", // Set as needed
-    sd_status: "running", // Set as needed
+    bill_status: 'closed', // Set as needed
+    sd_status: 'running', // Set as needed
     bill_id: billId, // Set as needed
     pr_id: item.pr_id,
     edit_status: 0.0, // Set as needed
-    disc_type: "0", // Set as needed
+    disc_type: '0', // Set as needed
     sales_type: item.sales_item_type,
-    product_no: item.product_no || "0",
+    product_no: item.product_no || '0',
     Isprinted: 0,
   };
-  console.log("item", transformedItem);
+  console.log('item', transformedItem);
   return transformedItem;
 };
 
@@ -93,17 +93,17 @@ const calculateDiscountAmount = (
   item,
   applyDiscount,
   discountType,
-  selectedDiscount
+  selectedDiscount,
 ) => {
   let discountPercentage = 0;
   if (applyDiscount) {
-    if (discountType === "DEFAULT_DISCOUNT") {
+    if (discountType === 'DEFAULT_DISCOUNT') {
       discountPercentage = item.discount_perc
         ? parseFloat(item.discount_perc)
         : 0;
     } else if (
-      discountType === "Cat_discount" ||
-      discountType === "Flat_discount"
+      discountType === 'Cat_discount' ||
+      discountType === 'Flat_discount'
     ) {
       discountPercentage = parseFloat(selectedDiscount);
     }
@@ -112,7 +112,7 @@ const calculateDiscountAmount = (
     (
       ((item.basic_rate ?? 0) * (item.qty ?? 0) * (discountPercentage ?? 0)) /
       100
-    ).toFixed(2)
+    ).toFixed(2),
   );
   return discountAmount;
 };
@@ -121,17 +121,17 @@ const calculateItemTaxableAmount = (
   item,
   applyDiscount,
   discountType,
-  selectedDiscount
+  selectedDiscount,
 ) => {
   let discountPercentage = 0;
   if (applyDiscount) {
-    if (discountType === "DEFAULT_DISCOUNT") {
+    if (discountType === 'DEFAULT_DISCOUNT') {
       discountPercentage = item.discount_perc
         ? parseFloat(item.discount_perc)
         : 0;
     } else if (
-      discountType === "Cat_discount" ||
-      discountType === "Flat_discount"
+      discountType === 'Cat_discount' ||
+      discountType === 'Flat_discount'
     ) {
       discountPercentage = parseFloat(selectedDiscount);
     }
@@ -139,7 +139,7 @@ const calculateItemTaxableAmount = (
   let price = parseFloat(item.basic_rate ?? 0) * (item.qty ?? 0);
 
   let discountAmount = parseFloat(
-    ((price * (discountPercentage ?? 0)) / 100).toFixed(2)
+    ((price * (discountPercentage ?? 0)) / 100).toFixed(2),
   );
 
   let itemTaxableAmount = price - discountAmount;
@@ -151,17 +151,17 @@ const calculateItemTaxAmt = (
   item,
   applyDiscount,
   discountType,
-  selectedDiscount
+  selectedDiscount,
 ) => {
   let discountPercentage = 0;
   if (applyDiscount) {
-    if (discountType === "DEFAULT_DISCOUNT") {
+    if (discountType === 'DEFAULT_DISCOUNT') {
       discountPercentage = item.discount_perc
         ? parseFloat(item.discount_perc)
         : 0;
     } else if (
-      discountType === "Cat_discount" ||
-      discountType === "Flat_discount"
+      discountType === 'Cat_discount' ||
+      discountType === 'Flat_discount'
     ) {
       discountPercentage = parseFloat(selectedDiscount);
     }
@@ -170,13 +170,13 @@ const calculateItemTaxAmt = (
   let price = parseFloat(item.basic_rate ?? 0) * (item.qty ?? 0);
 
   let discountAmount = parseFloat(
-    ((price * (discountPercentage ?? 0)) / 100).toFixed(2)
+    ((price * (discountPercentage ?? 0)) / 100).toFixed(2),
   );
 
   let itemTaxableAmount = price - discountAmount;
 
   let itemTaxAmt = parseFloat(
-    ((itemTaxableAmount * (item.basic_tax_percent ?? 0)) / 100).toFixed(2)
+    ((itemTaxableAmount * (item.basic_tax_percent ?? 0)) / 100).toFixed(2),
   );
 
   return itemTaxAmt;
@@ -185,18 +185,20 @@ const calculateItemTaxAmt = (
 export const transformItem2 = (
   item,
   billId,
+  item_id,
   discountType,
   selectedDiscount,
-  applyDiscount
+  applyDiscount,
 ) => {
   const transformedItem = {
+    item_id: parseInt(item_id) + 1,
     Isprinted: 0,
     sales_type: item.sales_item_type,
-    disc_type: "0", // Set as needed
+    disc_type: '0', // Set as needed
     pr_id: item.pr_id,
-    product_no: item.product_no || "0",
-    bill_status: "closed", // Set as needed
-    hsn_code: item.hsn_code || "0",
+    product_no: item.product_no || '0',
+    bill_status: 'closed', // Set as needed
+    hsn_code: item.hsn_code || '0',
     basic_price: parseFloat(item.price),
     tax_percentage: parseFloat(item.basic_tax_percent),
     cgst_tax: parseFloat(item.cgst_tax),
@@ -211,22 +213,22 @@ export const transformItem2 = (
       item,
       applyDiscount,
       discountType,
-      selectedDiscount
+      selectedDiscount,
     ),
     item_taxable_amt: calculateItemTaxableAmount(
       item,
       applyDiscount,
       discountType,
-      selectedDiscount
+      selectedDiscount,
     ), // Adjust accordingly
     item_tax_amt: calculateItemTaxAmt(
       item,
       applyDiscount,
       discountType,
-      selectedDiscount
+      selectedDiscount,
     ),
     bill_id: billId, // Set as needed
-    sd_status: "running", // Set as needed
+    sd_status: 'running', // Set as needed
     product_name: item.product_name,
     edit_status: 0.0, // Set as needed
     uom: item.uom,
@@ -235,16 +237,16 @@ export const transformItem2 = (
     sgst_tax_amount: calculateItemTaxAmt(item) / 2,
     cgst_tax_amount: calculateItemTaxAmt(item) / 2,
     total_price: Math.round(
-      calculateItemTaxableAmount(item) + calculateItemTaxAmt(item)
+      calculateItemTaxableAmount(item) + calculateItemTaxAmt(item),
     ),
   };
-  console.log("item", transformedItem);
+  console.log('item', transformedItem);
   return transformedItem;
 };
 
 // discount part
 export const applyDiscount = (cart, ratioString) => {
-  const [itemsForDiscount, discountPerSet] = ratioString.split(":").map(Number);
+  const [itemsForDiscount, discountPerSet] = ratioString.split(':').map(Number);
   const totalItemCount = cart.reduce((total, item) => total + item.qty, 0);
   const discountQuantity =
     Math.floor(totalItemCount / itemsForDiscount) * discountPerSet;
@@ -254,7 +256,7 @@ export const applyDiscount = (cart, ratioString) => {
 
     const flattenedCart = cart.reduce((acc, item) => {
       for (let i = 0; i < item.qty; i++) {
-        acc.push({ ...item, qty: 1 }); // Create individual items with quantity 1
+        acc.push({...item, qty: 1}); // Create individual items with quantity 1
       }
       return acc;
     }, []);
@@ -294,21 +296,21 @@ export const applyDiscount = (cart, ratioString) => {
         item.discounted
           ? total + 0
           : total + item.qty * parseFloat(item.basic_rate),
-      0
+      0,
     );
     const consolidatedCart = sortedCart.reduce((acc, item) => {
       // For discounted items, don't consolidate, add them directly to the accumulator
       if (item.discounted) {
-        acc.push({ ...item, qty: item.qty });
+        acc.push({...item, qty: item.qty});
       } else {
         // For non-discounted items, check if there's an existing item with the same pr_id
-        const found = acc.find((i) => i.pr_id === item.pr_id && !i.discounted);
+        const found = acc.find(i => i.pr_id === item.pr_id && !i.discounted);
         if (found) {
           // If found, only consolidate if it's also non-discounted
           found.qty += item.qty;
         } else {
           // If not found or the item is discounted, add it as a new entry
-          acc.push({ ...item, qty: item.qty });
+          acc.push({...item, qty: item.qty});
         }
       }
       return acc;
@@ -316,7 +318,7 @@ export const applyDiscount = (cart, ratioString) => {
 
     return {
       discountedCart: consolidatedCart.sort((a, b) =>
-        a.discounted === b.discounted ? 0 : a.discounted ? 1 : -1
+        a.discounted === b.discounted ? 0 : a.discounted ? 1 : -1,
       ),
       totalPrice: Number(totalPrice.toFixed(2)),
       totalBasic: Math.round(totalBasic),
@@ -326,7 +328,7 @@ export const applyDiscount = (cart, ratioString) => {
     // No discount applied
     const totalPrice = cart.reduce(
       (total, item) => total + item.price * item.qty,
-      0
+      0,
     );
 
     return {
@@ -361,19 +363,19 @@ export const getCurrentFinancialYear = () => {
 
 export const isSettingEnabled = (settingName, details) => {
   // Find the setting object with the given setting name
-  const setting = details.find((detail) => detail.setting_name === settingName);
+  const setting = details.find(detail => detail.setting_name === settingName);
   // If setting is found and setting_access is "1", return true; otherwise, return false
-  return setting && setting.setting_access == "1";
+  return setting && setting.setting_access == '1';
 };
 
 export const getDeviceType = () => {
-  const { width, height } = Dimensions.get("window");
+  const {width, height} = Dimensions.get('window');
   const threshold = 720; // Threshold width to differentiate between tablet and mobile
   // console.log("deviceType", width,height);
   // Consider a device as a tablet if its width (in portrait) or height (in landscape) is above the threshold
   const isTablet = width >= threshold && height >= threshold;
 
-  return isTablet ? "Tablet" : "Mobile";
+  return isTablet ? 'Tablet' : 'Mobile';
 };
 
 export const debounce = (func, wait) => {

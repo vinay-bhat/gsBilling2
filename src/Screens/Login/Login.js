@@ -10,6 +10,7 @@ import NetInfo from '@react-native-community/netinfo';
 import {isItemPresent} from '../../Utils/sqlite/SqliteFetch';
 import SyncModal from '../../Modals/SyncModal';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import {deleteYesterdayDoneCounterBills} from '../../Utils/sqlite/SqliteDelete';
 export default function Login({navigation}) {
   const [userName, setUserName] = useState('');
   const [password, setPassword] = useState('');
@@ -64,6 +65,7 @@ export default function Login({navigation}) {
         // "https://gspos.in/Testing/index.php/App_controller/login_authenticate";
         // "https://gspos.in/SalesMaster/index.php/App_controller/login_authenticate";
         'https://gspos.in/SalesMaster/index.php/Counter_billingapp_controller/login_authenticate';
+      // 'https://gspos.in/Testing/index.php/Counter_billingapp_controller/login_authenticate';
       const payload = {
         username: userName,
         password: password,
@@ -73,6 +75,16 @@ export default function Login({navigation}) {
         console.log('Login Response data:', response);
         const apiPromises = [];
         if (response.status == 'success') {
+          // Delete "Done" records from counter_bills for all dates except today
+          try {
+            await deleteYesterdayDoneCounterBills();
+          } catch (error) {
+            console.error(
+              'Error deleting counter_bills records (all dates except today):',
+              error,
+            );
+          }
+
           saveUserData(response);
           console.log(response, 'response123');
           setSession('loginData', response);

@@ -1,30 +1,35 @@
-import { db } from "./Sqlitecreation";
-export const getActiveData =async (tableName: string, status: string = 'Active'): Promise<any[]> => {
+import {db} from './Sqlitecreation';
+export const getActiveData = async (
+  tableName: string,
+  status: string = 'Active',
+): Promise<any[]> => {
   return new Promise<any[]>((resolve, reject) => {
-    db.transaction((tx:any) => {
+    db.transaction((tx: any) => {
       tx.executeSql(
-        `SELECT * FROM ${tableName}`,[],
-        (tx, results:any) => {
+        `SELECT * FROM ${tableName}`,
+        [],
+        (tx, results: any) => {
           const data: any[] = [];
-      
 
           for (let i = 0; i < results.rows.length; i++) {
             data.push(results.rows.item(i));
           }
-        
+
           resolve(data);
         },
-        (error:any) => {
+        (error: any) => {
           reject(error);
-        }
+        },
       );
     });
   });
-}
+};
 
-
-
-export const isItemPresent = async (tableName: string, conditionColumn: string, conditionValue: string): Promise<boolean> => {
+export const isItemPresent = async (
+  tableName: string,
+  conditionColumn: string,
+  conditionValue: string,
+): Promise<boolean> => {
   return new Promise<boolean>((resolve, reject) => {
     db.transaction((tx: any) => {
       tx.executeSql(
@@ -36,7 +41,7 @@ export const isItemPresent = async (tableName: string, conditionColumn: string, 
         },
         (error: any) => {
           reject(error);
-        }
+        },
       );
     });
   });
@@ -54,15 +59,17 @@ export const getTotalItemCount = async (tableName: string): Promise<number> => {
         },
         (error: any) => {
           reject(error);
-        }
+        },
       );
     });
   });
 };
 
-
-
-export const getAllById = async (tableName: string, conditionColumn: string, conditionValue: string): Promise<any[]> => {
+export const getAllById = async (
+  tableName: string,
+  conditionColumn: string,
+  conditionValue: string,
+): Promise<any[]> => {
   return new Promise<any[]>((resolve, reject) => {
     db.transaction((tx: any) => {
       tx.executeSql(
@@ -70,57 +77,62 @@ export const getAllById = async (tableName: string, conditionColumn: string, con
         [conditionValue],
         (tx, results: any) => {
           const data: any[] = [];
-    
+
           for (let i = 0; i < results.rows.length; i++) {
             data.push(results.rows.item(i));
           }
-        
+
           resolve(data);
         },
         (error: any) => {
           reject(error);
-        }
+        },
       );
     });
   });
 };
 
-export const getAsyncedData =async (tableName: string, syncStatus: string = 'pending'): Promise<any[]> => {
+export const getAsyncedData = async (
+  tableName: string,
+  syncStatus: string = 'pending',
+): Promise<any[]> => {
   return new Promise<any[]>((resolve, reject) => {
-    db.transaction((tx:any) => {
+    db.transaction((tx: any) => {
       tx.executeSql(
         `SELECT * FROM ${tableName} WHERE sync_status = ?`,
         [syncStatus],
-        (tx, results:any) => {
+        (tx, results: any) => {
           const data: any[] = [];
-      
 
           for (let i = 0; i < results.rows.length; i++) {
             data.push(results.rows.item(i));
           }
-        
+
           resolve(data);
         },
-        (error:any) => {
+        (error: any) => {
           reject(error);
-        }
+        },
       );
     });
   });
-}
+};
 
-
-export const getLastValues = async (tableName: string, columns: string[]): Promise<any> => {
+export const getLastValues = async (
+  tableName: string,
+  columns: string[],
+): Promise<any> => {
   return new Promise<any>((resolve, reject) => {
- 
-    const selectQuery = `SELECT ${columns.join(',')} FROM ${tableName} ORDER BY ROWID DESC LIMIT 1`;
+    const selectQuery = `SELECT ${columns.join(
+      ',',
+    )} FROM ${tableName} ORDER BY ROWID DESC LIMIT 1`;
 
     db.transaction((tx: any) => {
       tx.executeSql(
         selectQuery,
         [],
         (tx, results: any) => {
-          console.log("getLastValues results",results.rows.item);
+          console.log('getLastValues results', results.rows.item);
           if (results.rows.length > 0) {
             resolve(results.rows.item(0));
           } else {
@@ -129,7 +141,7 @@ export const getLastValues = async (tableName: string, columns: string[]): Promi
         },
         (error: any) => {
           reject(error);
-        }
+        },
       );
     });
   });
@@ -137,7 +149,7 @@ export const getLastValues = async (tableName: string, columns: string[]): Promi
 
 // export const getLastValues = async (tableName: string, columns: string[]): Promise<any> => {
 //   return new Promise<any>((resolve, reject) => {
- 
+
 //     const selectQuery = `SELECT ${columns.join(',')} FROM ${tableName} ORDER BY ROWID DESC LIMIT 1`;
 //     type ItemType = { [key: string]: any };
 //     db.transaction((tx: any) => {

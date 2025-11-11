@@ -6,6 +6,7 @@ import {
   TextInput,
   StyleSheet,
   ScrollView,
+  Pressable,
 } from 'react-native';
 import React, {useEffect, useState} from 'react';
 import {dashboardStyles as styles} from '../DashboardStyle';
@@ -211,12 +212,11 @@ export default function NormalCart({
           )}
           contentContainerStyle={{
             paddingBottom: 100,
-            flexGrow: 1,
           }}
           showsVerticalScrollIndicator={true}
           scrollEnabled={true}
           nestedScrollEnabled={true}
-          style={{flex: 1}}
+          style={{flex: 1, minHeight: 0}}
           bounces={true}
           alwaysBounceVertical={false}
         />
@@ -271,7 +271,7 @@ export default function NormalCart({
                   paymentType.app_setting_id === item.app_setting_id;
 
                 return (
-                  <TouchableOpacity
+                  <Pressable
                     key={item.app_setting_id}
                     disabled={cartList.length === 0}
                     onPress={() => onPaymentSelect(item)}
@@ -289,11 +289,11 @@ export default function NormalCart({
                       ]}>
                       {item.setting_name}
                     </Text>
-                  </TouchableOpacity>
+                  </Pressable>
                 );
               })
             ) : (
-              <TouchableOpacity
+              <Pressable
                 disabled={cartList.length === 0}
                 onPress={() => onPaymentSelect(paymentList[0])}
                 style={[
@@ -304,7 +304,7 @@ export default function NormalCart({
                 <Text style={normalCartStyles.singlePaymentButtonText}>
                   {paymentList[0].setting_name}
                 </Text>
-              </TouchableOpacity>
+              </Pressable>
             )}
           </View>
         </View>
@@ -327,6 +327,7 @@ const normalCartStyles = StyleSheet.create({
     backgroundColor: '#FFFFFF',
     flexDirection: 'column',
     borderRadius: 12,
+    minHeight: 0,
   },
   bottomSection: {
     flexShrink: 0,
@@ -356,7 +357,7 @@ const normalCartStyles = StyleSheet.create({
   cartListContainer: {
     flex: 1,
     backgroundColor: '#FFFFFF',
-    // minHeight: 200,
+    minHeight: 0,
   },
   cartScrollView: {
     flex: 1,

@@ -8,9 +8,13 @@ import {
   ScrollView,
   ActivityIndicator,
   Modal,
+  Pressable,
+  Dimensions,
+  StatusBar,
+  Platform,
 } from 'react-native';
 import React, {useEffect, useRef, useState} from 'react';
-import {Modal as PaperModal} from 'react-native-paper';
+import {Portal} from 'react-native-paper';
 import NormalCart from '../Screens/Cart/NormalCart';
 import SanteCart from '../Screens/Cart/SanteCart';
 //@ts-ignore
@@ -25,6 +29,8 @@ import useStore from '../Redux/Store';
 import {sendGetRequest} from '../Utils/ApiMethods';
 import FastImage from 'react-native-fast-image';
 import {fonts} from '../constants/constants';
+
+const {height: SCREEN_HEIGHT, width: SCREEN_WIDTH} = Dimensions.get('window');
 export default function CartModal(props: any) {
   const containerStyle: any = {
     backgroundColor: '#FFFFFF',
@@ -79,6 +85,11 @@ export default function CartModal(props: any) {
   const [paymentCredentials, setPaymentCredentials] = useState<any>([]);
 
   const [isPrinting, setIsPrinting] = useState(false);
+  const isPrintingRef = useRef(false);
+  const [, forceUpdate] = useState({});
+  const lastClickTime = useRef(0);
+  const lockTimeoutRef = useRef<any>(null);
+  const DEBOUNCE_DELAY = 1000; // 1 second debounce
   // const [cartValues, setCartValues] = useState<any>({
   //   OriginalTotal: 0,
   //   CartTotalBasic: 0,
@@ -134,41 +145,89 @@ export default function CartModal(props: any) {
     }
   };
 
+  const debouncedPrintHandler = (handler: () => void) => {
+    const now = Date.now();
+    const timeSinceLastClick = now - lastClickTime.current;
+
+    console.log('Time since last click:', timeSinceLastClick);
+    console.log('isPrintingRef.current:', isPrintingRef.current);
+
+    // Multiple protection layers
+    if (isPrintingRef.current) {
+      console.log('Print already in progress, ignoring duplicate request');
+      return;
+    }
+
+    if (timeSinceLastClick < DEBOUNCE_DELAY) {
+      console.log('Too soon since last click, ignoring request');
+      return;
+    }
+
+    // Clear any existing timeout
+    if (lockTimeoutRef.current) {
+      clearTimeout(lockTimeoutRef.current);
+    }
+
+    lastClickTime.current = now;
+    isPrintingRef.current = true;
+    setIsPrinting(true);
+    forceUpdate({});
+
+    // Set a timeout lock as additional protection
+    lockTimeoutRef.current = setTimeout(() => {
+      isPrintingRef.current = false;
+      setIsPrinting(false);
+      forceUpdate({});
+    }, DEBOUNCE_DELAY);
+
+    handler();
+  };
+
   const generateQRCode = async (
     amount: number,
     description: string,
     qrType: string,
   ) => {
-    setLoading(true);
-    try {
-      if (paymentCreds.length > 0) {
-        const response = await PaymentService.createUpiQR(
-          amount,
-          'INR',
-          description || 'Payment via QR Code',
-          qrType,
-          paymentCreds[0]?.customer_id,
-          paymentCreds[0]?.key_id,
-          paymentCreds[0]?.key_secret,
-        );
-        console.log('Payment created:', response);
-        setPaymentData(response);
-        preloadQRCode(response.image_url);
-        setCroppedQR(response.image_url);
-        // cropQRAutomatically(response.image_url);
-        setShowQRModal(true);
-        startTimer();
-        startPolling(response);
-      } else {
+    debouncedPrintHandler(async () => {
+      setLoading(true);
+      try {
+        if (paymentCreds.length > 0) {
+          const response = await PaymentService.createUpiQR(
+            amount,
+            'INR',
+            description || 'Payment via QR Code',
+            qrType,
+            paymentCreds[0]?.customer_id,
+            paymentCreds[0]?.key_id,
+            paymentCreds[0]?.key_secret,
+          );
+          console.log('Payment created:', response);
+          setPaymentData(response);
+          preloadQRCode(response.image_url);
+          setCroppedQR(response.image_url);
+          // cropQRAutomatically(response.image_url);
+          setShowQRModal(true);
+          startTimer();
+          startPolling(response);
+        } else {
+          try {
+            setLoading(false);
+            await props.setCustInfo(true);
+          } catch (error) {
+            console.error('Print error:', error);
+            Alert.alert('Error', 'Failed to print receipt. Please try again.');
+          }
+        }
+      } catch (error) {
+        console.error('Error generating QR code:', error);
+        Alert.alert('Error', 'Failed to generate QR code. Please try again.');
+      } finally {
         setLoading(false);
-        props.setCustInfo(true);
+        setIsPrinting(false);
+        isPrintingRef.current = false;
+        forceUpdate({});
       }
-    } catch (error) {
-      console.error('Error generating QR code:', error);
-      Alert.alert('Error', 'Failed to generate QR code. Please try again.');
-    } finally {
-      setLoading(false);
-    }
+    });
   };
 
   const startPolling = (paymentData: any) => {
@@ -283,21 +342,19 @@ export default function CartModal(props: any) {
   };
 
   const printHandler = async () => {
-    if (isPrinting) {
-      console.log('Print already in progress, ignoring duplicate request');
-      return;
-    }
-
-    try {
-      setIsPrinting(true);
-      await props.newPrintGenerate();
-      props.onClose(false);
-    } catch (error) {
-      console.error('Print error:', error);
-      Alert.alert('Error', 'Failed to print receipt. Please try again.');
-    } finally {
-      setIsPrinting(false);
-    }
+    debouncedPrintHandler(async () => {
+      try {
+        await props.newPrintGenerate();
+        props.onClose(false);
+      } catch (error) {
+        console.error('Print error:', error);
+        Alert.alert('Error', 'Failed to print receipt. Please try again.');
+      } finally {
+        setIsPrinting(false);
+        isPrintingRef.current = false;
+        forceUpdate({});
+      }
+    });
   };
 
   const closeCartHandler = () => {
@@ -319,145 +376,152 @@ export default function CartModal(props: any) {
 
   return (
     <>
-      <Modal
-        visible={props.visible}
-        onRequestClose={props.onClose}
-        transparent={true}>
-        <View style={styles.modalOverlay}>
-          <TouchableOpacity
-            style={styles.closeButton}
-            onPress={() => closeCartHandler()}>
-            <MaterialCommunityIcons name="close" size={24} color="#FFFFFF" />
-          </TouchableOpacity>
+      {props.visible && (
+        <Portal>
+          <View style={styles.modalOverlay}>
+            <Pressable
+              style={styles.closeButton}
+              onPress={() => closeCartHandler()}>
+              <MaterialCommunityIcons name="close" size={24} color="#FFFFFF" />
+            </Pressable>
 
-          <View style={styles.modalContent}>
-            <View style={styles.compactHeaderSection}>
-              {props.appSettings &&
-              props.appSettings.length > 0 &&
-              props.isSettingEnabled('DISCOUNT_BUTTON', props.appSettings) ? (
-                <TouchableOpacity
-                  disabled={props.cartList.length == 0}
-                  style={[
-                    styles.compactActionButton,
-                    props.discountModal && styles.compactActionButtonActive,
-                  ]}
-                  onPress={() =>
-                    props.isSante ? null : props.setDiscountModal(true)
-                  }>
-                  <MaterialCommunityIcons
-                    name="percent"
-                    size={16}
-                    color={props.discountModal ? '#FFFFFF' : '#007AFF'}
-                  />
-                  <Text
+            <View style={styles.modalContent}>
+              <View style={styles.compactHeaderSection}>
+                {props.appSettings &&
+                props.appSettings.length > 0 &&
+                props.isSettingEnabled('DISCOUNT_BUTTON', props.appSettings) ? (
+                  <TouchableOpacity
+                    disabled={props.cartList.length == 0}
                     style={[
-                      styles.compactActionButtonText,
-                      props.discountModal &&
-                        styles.compactActionButtonTextActive,
-                    ]}>
-                    Discount {props.isDiscountApplied ? `Applied` : ''}
-                  </Text>
-                </TouchableOpacity>
-              ) : null}
+                      styles.compactActionButton,
+                      props.discountModal && styles.compactActionButtonActive,
+                    ]}
+                    onPress={() =>
+                      props.isSante ? null : props.setDiscountModal(true)
+                    }>
+                    <MaterialCommunityIcons
+                      name="percent"
+                      size={16}
+                      color={props.discountModal ? '#FFFFFF' : '#007AFF'}
+                    />
+                    <Text
+                      style={[
+                        styles.compactActionButtonText,
+                        props.discountModal &&
+                          styles.compactActionButtonTextActive,
+                      ]}>
+                      Discount {props.isDiscountApplied ? `Applied` : ''}
+                    </Text>
+                  </TouchableOpacity>
+                ) : null}
 
-              <TouchableOpacity
-                disabled={props.cartList.length == 0}
-                style={styles.compactActionButton}
-                onPress={() => props.cartRefresh()}>
-                <MaterialCommunityIcons name="refresh" size={16} color="#FFF" />
-                <Text style={styles.compactActionButtonText}>Refresh</Text>
-              </TouchableOpacity>
-            </View>
-            <View style={styles.cartWrapper}>
-              {props.isSante ? (
-                <SanteCart
-                  cartList={props.cartList}
-                  handleQty={props.handleQty}
-                  getItemTotal={props.getItemTotal}
-                  getItemQty={props.getItemQty}
-                  getCartTotal={props.getCartTotal}
-                  openNcModal={props.openNcModal}
-                  openMulti={props.openMulti}
-                  onPaymentSelect={props.onPaymentSelect}
-                  paymentType={props.paymentType}
-                  paymentList={props.paymentList}
-                  setDiscountedItems={props.setDiscountedItems}
-                  discountedItems={props.discountedItems}
-                  selectedDiscount={props.selectedDiscount}
-                  santeDiscountRatio={props.santeDiscountRatio}
-                />
-              ) : (
-                <NormalCart
-                  cartList={props.cartList}
-                  handleQty={props.handleQty}
-                  openNcModal={props.openNcModal}
-                  openMulti={props.openMulti}
-                  paymentList={props.paymentList}
-                  onPaymentSelect={props.onPaymentSelect}
-                  paymentType={props.paymentType}
-                  setNormalCartValues={props.setNormalCartValues}
-                  normalCartValues={props.normalCartValues}
-                />
-              )}
-            </View>
-            <View style={styles.footerSection}>
-              <TouchableOpacity
-                disabled={
-                  isPrinting ||
-                  props.cartList.length == 0 ||
-                  !('setting_name' in props.paymentType) ||
-                  (props.isSante
-                    ? props.getItemQtyWithCarryBag % props.itemsForDiscount != 0
-                    : false)
-                }
-                onPress={() =>
-                  props.cartList &&
-                  props.cartList.length > 0 &&
-                  'setting_name' in props.paymentType &&
-                  props.isSante
-                    ? // ? onGenerate()
-                      printHandler()
-                    : props.cartList &&
-                      props.cartList.length > 0 &&
-                      'setting_name' in props.paymentType &&
-                      !props.isSante
-                    ? generateQRCode(
-                        props.normalCartValues?.CartTotal,
-                        'Payment via QR Code',
-                        'upi_direct',
-                      )
-                    : null
-                }
-                style={[
-                  styles.printButton,
-                  (isPrinting ||
+                <Pressable
+                  disabled={props.cartList.length == 0}
+                  style={styles.compactActionButton}
+                  onPress={() => props.cartRefresh()}>
+                  <MaterialCommunityIcons
+                    name="refresh"
+                    size={16}
+                    color="#FFF"
+                  />
+                  <Text style={styles.compactActionButtonText}>Refresh</Text>
+                </Pressable>
+              </View>
+              <View style={styles.cartWrapper}>
+                {props.isSante ? (
+                  <SanteCart
+                    cartList={props.cartList}
+                    handleQty={props.handleQty}
+                    getItemTotal={props.getItemTotal}
+                    getItemQty={props.getItemQty}
+                    getCartTotal={props.getCartTotal}
+                    openNcModal={props.openNcModal}
+                    openMulti={props.openMulti}
+                    onPaymentSelect={props.onPaymentSelect}
+                    paymentType={props.paymentType}
+                    paymentList={props.paymentList}
+                    setDiscountedItems={props.setDiscountedItems}
+                    discountedItems={props.discountedItems}
+                    selectedDiscount={props.selectedDiscount}
+                    santeDiscountRatio={props.santeDiscountRatio}
+                  />
+                ) : (
+                  <NormalCart
+                    cartList={props.cartList}
+                    handleQty={props.handleQty}
+                    openNcModal={props.openNcModal}
+                    openMulti={props.openMulti}
+                    paymentList={props.paymentList}
+                    onPaymentSelect={props.onPaymentSelect}
+                    paymentType={props.paymentType}
+                    setNormalCartValues={props.setNormalCartValues}
+                    normalCartValues={props.normalCartValues}
+                  />
+                )}
+              </View>
+              <View style={styles.footerSection}>
+                <Pressable
+                  disabled={
+                    isPrintingRef.current ||
+                    isPrinting ||
                     props.cartList.length == 0 ||
                     !('setting_name' in props.paymentType) ||
                     (props.isSante
                       ? props.getItemQtyWithCarryBag % props.itemsForDiscount !=
                         0
-                      : false)) &&
-                    styles.printButtonDisabled,
-                ]}>
-                {isPrinting ? ( // Show loading state
-                  <ActivityIndicator size="small" color="#FFFFFF" />
-                ) : loading ? (
-                  <ActivityIndicator size="small" color="#FFFFFF" />
-                ) : (
-                  <>
-                    <MaterialCommunityIcons
-                      name="printer"
-                      size={20}
-                      color="#FFFFFF"
-                    />
-                    <Text style={styles.printButtonText}>Print Receipt</Text>
-                  </>
-                )}
-              </TouchableOpacity>
+                      : false)
+                  }
+                  onPress={() =>
+                    props.cartList &&
+                    props.cartList.length > 0 &&
+                    'setting_name' in props.paymentType &&
+                    props.isSante
+                      ? // ? onGenerate()
+                        printHandler()
+                      : props.cartList &&
+                        props.cartList.length > 0 &&
+                        'setting_name' in props.paymentType &&
+                        !props.isSante
+                      ? generateQRCode(
+                          props.normalCartValues?.CartTotal,
+                          'Payment via QR Code',
+                          'upi_direct',
+                        )
+                      : null
+                  }
+                  style={[
+                    styles.printButton,
+                    (isPrintingRef.current ||
+                      isPrinting ||
+                      props.cartList.length == 0 ||
+                      !('setting_name' in props.paymentType) ||
+                      (props.isSante
+                        ? props.getItemQtyWithCarryBag %
+                            props.itemsForDiscount !=
+                          0
+                        : false)) &&
+                      styles.printButtonDisabled,
+                  ]}>
+                  {isPrintingRef.current || isPrinting ? ( // Show loading state
+                    <ActivityIndicator size="small" color="#FFFFFF" />
+                  ) : loading ? (
+                    <ActivityIndicator size="small" color="#FFFFFF" />
+                  ) : (
+                    <>
+                      <MaterialCommunityIcons
+                        name="printer"
+                        size={20}
+                        color="#FFFFFF"
+                      />
+                      <Text style={styles.printButtonText}>Print Receipt</Text>
+                    </>
+                  )}
+                </Pressable>
+              </View>
             </View>
           </View>
-        </View>
-      </Modal>
+        </Portal>
+      )}
       <Modal
         visible={showQRModal}
         transparent={true}
@@ -554,16 +618,24 @@ const styles = StyleSheet.create({
     shadowRadius: 4,
   },
   modalContent: {
-    flex: 1,
+    height: SCREEN_HEIGHT,
     padding: 10,
     backgroundColor: '#444',
     borderRadius: 12,
+    flexDirection: 'column',
+    justifyContent: 'flex-start',
   },
   modalOverlay: {
-    flex: 1,
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    height: SCREEN_HEIGHT,
+    width: SCREEN_WIDTH,
     backgroundColor: 'rgba(0, 0, 0, 0.5)',
-    justifyContent: 'center',
-    // alignItems: 'center',
+    zIndex: 99999,
+    elevation: 99999,
   },
   compactHeaderSection: {
     flexDirection: 'row',
@@ -605,6 +677,7 @@ const styles = StyleSheet.create({
     marginBottom: 8,
     padding: 5,
     minHeight: 0,
+    maxHeight: SCREEN_HEIGHT - 200, // Reserve space for header and footer
   },
   footerSection: {
     alignItems: 'center',
