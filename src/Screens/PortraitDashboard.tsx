@@ -1,4 +1,10 @@
-import React, {useState, useEffect, useLayoutEffect, useCallback} from 'react';
+import React, {
+  useState,
+  useEffect,
+  useLayoutEffect,
+  useCallback,
+  useMemo,
+} from 'react';
 import {
   FlatList,
   SafeAreaView,
@@ -12,6 +18,7 @@ import {
 } from 'react-native';
 import Loader from '../Components/Loader';
 import useStore from '../Redux/Store';
+import {shallow} from 'zustand/shallow';
 import NoData from '../Components/NoData';
 import {dashboardStyles as styles} from './DashboardStyle';
 import {Dimensions} from 'react-native';
@@ -55,38 +62,17 @@ const Portrait = (props: any) => {
 
   const {
     user,
-    saveUserData,
-    productCategories,
-    saveCategories,
-    saveProducts,
-    productList,
     selectedDiscount,
     paymentList,
-    santeData,
-    saveAppSettings,
-    saveMastersCreationData,
-    setDiscountList,
-    setDiscountType,
-    setPaymentList,
     setMultipayment,
     multiPayment,
     setSelectedDiscount,
-    discountDetails,
     ncModalData,
-    setNcModalData,
-    setDiscountDetails,
     appSettings,
-    setDicountedItemsId,
-    discountedItemId,
-    setSanteDiscountRatio,
     santeDiscountRatio,
-    outletDetails,
-    setOutletDetails,
-    setTokenNumber,
-    tokenNumber,
     isDiscountApplied,
     setIsDiscountApplied,
-    discountType,
+    addToCart,
   } = useStore();
 
   useFocusEffect(
@@ -101,20 +87,8 @@ const Portrait = (props: any) => {
               onSync={props.onSync}
               isPortrait={true}
               setOpenCart={setOpenCart}
-              cartList={props.cartList}
             />
           ),
-          // drawerLabel: () => (
-          //   <TouchableOpacity
-          //     onPress={() => {
-          //       props.onSync();
-          //       navigation.dispatch(DrawerActions.toggleDrawer());
-          //     }}
-          //   >
-          //     <Text style={[portariatStyles.drawerLabel]}>Synch Data</Text>
-          //   </TouchableOpacity>
-          // ),
-
           drawerActiveTintColor: '#fff',
           drawerInactiveTintColor: '#73737D',
           drawerItemStyle: {
@@ -209,6 +183,44 @@ const Portrait = (props: any) => {
     }
   };
 
+  const renderItem = useCallback(({item}: any) => {
+    return <ProductCard item={item} onPress={addToCart} />;
+  }, []);
+
+  const ProductCard = React.memo(({item, onPress}: any) => {
+    const cartItem = useStore(s => s.cartMap[item.pr_id], shallow);
+
+    const isInCart = !!cartItem;
+
+    return (
+      <Pressable
+        onPress={() => onPress(item)}
+        style={[
+          portraitStyles.productCard,
+          isInCart && portraitStyles.productCardSelected,
+        ]}>
+        <View style={portraitStyles.productCardContent}>
+          <Text
+            style={[
+              portraitStyles.productName,
+              isInCart && portraitStyles.productNameSelected,
+            ]}
+            numberOfLines={2}
+            ellipsizeMode="tail">
+            {item.product_name
+              .toLowerCase()
+              .replace(/\b\w/g, (letter: any) => letter.toUpperCase())}
+          </Text>
+          {isInCart && (
+            <View style={portraitStyles.selectedIndicator}>
+              <MaterialCommunityIcons name="check" size={12} color="#FFFFFF" />
+            </View>
+          )}
+        </View>
+      </Pressable>
+    );
+  });
+
   return (
     <SafeAreaView style={portraitStyles.container}>
       {props.isLoading ? (
@@ -251,45 +263,7 @@ const Portrait = (props: any) => {
           {props.products && props.products.length > 0 ? (
             <FlatList
               data={props.products}
-              renderItem={({item}: any) => {
-                let isInCart = props.cartList?.some(
-                  (cartItem: any) => cartItem.pr_id === item.pr_id,
-                );
-                return (
-                  <Pressable
-                    key={item.pr_id}
-                    onPress={() => props.handleAddToCart(item)}
-                    style={[
-                      portraitStyles.productCard,
-                      isInCart && portraitStyles.productCardSelected,
-                    ]}>
-                    <View style={portraitStyles.productCardContent}>
-                      <Text
-                        style={[
-                          portraitStyles.productName,
-                          isInCart && portraitStyles.productNameSelected,
-                        ]}
-                        numberOfLines={2}
-                        ellipsizeMode="tail">
-                        {item.product_name
-                          .toLowerCase()
-                          .replace(/\b\w/g, (letter: any) =>
-                            letter.toUpperCase(),
-                          )}
-                      </Text>
-                      {isInCart && (
-                        <View style={portraitStyles.selectedIndicator}>
-                          <MaterialCommunityIcons
-                            name="check"
-                            size={12}
-                            color="#FFFFFF"
-                          />
-                        </View>
-                      )}
-                    </View>
-                  </Pressable>
-                );
-              }}
+              renderItem={renderItem}
               keyExtractor={(item: any) => item.pr_id}
               numColumns={numColumns}
               key={numColumns.toString()}
@@ -378,7 +352,6 @@ const Portrait = (props: any) => {
         onClose={() => setOpenCart(false)}
         onGenerate={props.onCounterBillGenerate}
         isSante={props.isSante}
-        cartList={props.cartList}
         handleQty={props.handleQty}
         getItemTotal={props.getItemTotal}
         getItemQty={props.getItemQty}

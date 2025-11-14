@@ -1,80 +1,38 @@
-import {
-  Text,
-  View,
-  StyleSheet,
-  FlatList,
-  TouchableOpacity,
-  SafeAreaView,
-  Dimensions,
-  ScrollView,
-  Platform,
-  Alert,
-} from 'react-native';
-import React, {
-  Component,
-  useCallback,
-  useEffect,
-  useState,
-  useMemo,
-} from 'react';
-import Header from '../Components/Header';
-import DiscountModal from '../Modals/Discounts';
-import NCModal from '../Modals/NC';
+import {SafeAreaView, Dimensions, Platform, Alert} from 'react-native';
+import React, {useCallback, useEffect, useState, useMemo} from 'react';
 //@ts-ignore
-import Icon from 'react-native-vector-icons/FontAwesome';
-import {dashboardStyles as styles} from './DashboardStyle';
-import NormalCart from './Cart/NormalCart';
-import SanteCart from './Cart/SanteCart';
 import useStore from '../Redux/Store';
 import {sendGetRequest, sendPostRequest} from '../Utils/ApiMethods';
-import Loader from '../Components/Loader';
 import {useNavigation} from '@react-navigation/native';
-import MultiPayment from '../Modals/MultiPayment';
-import NoData from '../Components/NoData';
 //@ts-ignore
-import MaterialCommunityIcons from 'react-native-vector-icons/MaterialCommunityIcons';
-import CustomerInfo from '../Modals/CustomerInfo';
 import {
-  COUNTER_API,
-  apiUrlMapping,
   applyDiscount,
   getCurrentDatTime,
   getCurrentFinancialYear,
   getDeviceType,
-  isSettingEnabled,
-  transformItem,
   transformItem2,
 } from '../Utils/Common';
-import SyncModal from '../Modals/SyncModal';
 import NetInfo from '@react-native-community/netinfo';
-import {getInitialData} from '../Services/API_Helper';
 import {inserData, updateStatusById} from '../Utils/sqlite/SqliteInsert';
 import {
-  getActiveData,
   getAllById,
   getAsyncedData,
   getLastValues,
 } from '../Utils/sqlite/SqliteFetch';
-import {truncateData} from '../Utils/sqlite/SqliteDelete';
-import NoDataModal from '../Modals/NoDataModal';
 import {NativeModules, Button} from 'react-native';
 const {NGXBillingModule} = NativeModules;
 const {TVSBillingModule} = NativeModules;
 const {UrovoBillingModule} = NativeModules;
 const {IminiBillingModule} = NativeModules;
-import {
-  requestMultiple,
-  PERMISSIONS,
-  RESULTS,
-  request,
-} from 'react-native-permissions';
+import {requestMultiple, PERMISSIONS} from 'react-native-permissions';
 import {getSession} from '../Utils/AsyncStorageFunctions';
-import LandscapeDashboard from './LandscapeDashboard';
 import PortraitDashboard from './PortraitDashboard';
 import calculateCartValues from '../Services/discountHandler';
+import {queueDBInsert} from '../Utils/queue';
 
 const Dashboard = () => {
-  const [cartList, setCartList] = useState([]);
+  // const [cartList, setCartList] = useState<any[]>([]);
+  // const [cartMap, setCartMap] = useState({});
   const [discountModal, setDiscountModal] = useState(false);
   const [ncModal, setNcModal] = useState(false);
   const [isSante, setIsSante] = useState(false);
@@ -91,11 +49,9 @@ const Dashboard = () => {
   const [paymentType, setPaymentType] = useState<any>({});
   const [noInternet, setNoInternet] = useState(false);
   const [syncErr, setSyncErr] = useState(false);
-  const [discountedItems, setDiscountedItems] = useState([]);
   const [syncDone, setSyncDone] = useState(false);
   const [noSyncdata, setNoSyncData] = useState(false);
 
-  const [groupedItems, setGroupedItems] = useState({});
   const [orientation, setOrientation] = useState('LANDSCAPE');
   const [printerDetails, setPrinterDetails] = useState(IminiBillingModule);
 
@@ -112,40 +68,29 @@ const Dashboard = () => {
   // const[categories,saveCategories]= useStore([])
   const {
     user,
-    saveUserData,
     productCategories,
-    saveCategories,
-    saveProducts,
     productList,
     selectedDiscount,
     paymentList,
     santeData,
-    saveAppSettings,
-    saveMastersCreationData,
-    setDiscountList,
-    setDiscountType,
-    setPaymentList,
     setMultipayment,
     multiPayment,
     setSelectedDiscount,
-    discountDetails,
-    ncModalData,
     setNcModalData,
     setDiscountDetails,
     appSettings,
     setDicountedItemsId,
-    discountedItemId,
-    setSanteDiscountRatio,
     santeDiscountRatio,
     outletDetails,
-    setOutletDetails,
-    setTokenNumber,
-    tokenNumber,
     discountType,
     isDiscountApplied,
     setIsDiscountApplied,
     setPaymentCreds,
+    cartMap,
   } = useStore();
+
+  const cartList: any = useMemo(() => Object.values(cartMap), [cartMap]);
+  const clearCart = useStore(s => s.clearCart);
 
   useEffect(() => {
     async function requestBluetooth() {
@@ -296,27 +241,45 @@ const Dashboard = () => {
     }
   };
 
-  const handleAddToCart = (item: any) => {
-    const updatedCartList: any = [...cartList];
-    const index = updatedCartList.findIndex(
-      (cartItem: any) => cartItem.pr_id === item.pr_id,
-    );
+  // const handleAddToCart = (item: any) => {
+  //   const updatedCartList: any = [...cartList];
+  //   const index = updatedCartList.findIndex(
+  //     (cartItem: any) => cartItem.pr_id === item.pr_id,
+  //   );
 
-    if (index !== -1) {
-      // updatedCartList[index].qty += 1;
-      updatedCartList[index] = {
-        ...updatedCartList[index],
-        qty: updatedCartList[index].qty + 1,
-      };
-    } else {
-      // item.qty = 1;
-      // updatedCartList.push(item);
-      const newItem = {...item, qty: 1};
-      updatedCartList.push(newItem);
-    }
+  //   if (index !== -1) {
+  //     // updatedCartList[index].qty += 1;
+  //     updatedCartList[index] = {
+  //       ...updatedCartList[index],
+  //       qty: updatedCartList[index].qty + 1,
+  //     };
+  //   } else {
+  //     // item.qty = 1;
+  //     // updatedCartList.push(item);
+  //     const newItem = {...item, qty: 1};
+  //     updatedCartList.push(newItem);
+  //   }
 
-    setCartList(updatedCartList);
-  };
+  //   setCartList(updatedCartList);
+  // };
+
+  // const handleAddToCart = useCallback((item: any) => {
+  //   setCartList((prev: any) => {
+  //     const index = prev.findIndex((p: any) => p.pr_id === item.pr_id);
+
+  //     if (index !== -1) {
+  //       // update qty
+  //       const updated = [...prev];
+  //       updated[index] = {
+  //         ...updated[index],
+  //         qty: updated[index].qty + 1,
+  //       };
+  //       return updated;
+  //     }
+
+  //     return [...prev, {...item, qty: 1}];
+  //   });
+  // }, []);
 
   const getItemTotal = () => {
     return cartList.reduce(
@@ -366,37 +329,37 @@ const Dashboard = () => {
     return Number(totalAmt.toFixed(0));
   };
 
-  const handleQty = (type: any, item: any, count: any) => {
-    const updatedCartList: any = [...cartList];
-    const index = updatedCartList.findIndex(
-      (cartItem: any) => cartItem.pr_id === item.pr_id,
-    );
+  // const handleQty = (type: any, item: any, count: any) => {
+  //   const updatedCartList: any = [...cartList];
+  //   const index = updatedCartList.findIndex(
+  //     (cartItem: any) => cartItem.pr_id === item.pr_id,
+  //   );
 
-    if (index !== -1) {
-      if (type === 'delete') {
-        updatedCartList[index].qty === 0;
-        updatedCartList.splice(index, 1);
-      } else if (type == 'bulk' && count < 99) {
-        if (count == null || count == undefined || count <= 0) {
-          updatedCartList[index].qty = 1;
-        } else {
-          updatedCartList[index].qty = count;
-        }
-      } else {
-        if (type === 'remove' && updatedCartList[index].qty > 1) {
-          updatedCartList[index].qty = parseInt(updatedCartList[index].qty) - 1;
-        } else if (type === 'add') {
-          updatedCartList[index].qty = parseInt(updatedCartList[index].qty) + 1;
-        }
+  //   if (index !== -1) {
+  //     if (type === 'delete') {
+  //       updatedCartList[index].qty === 0;
+  //       updatedCartList.splice(index, 1);
+  //     } else if (type == 'bulk' && count < 99) {
+  //       if (count == null || count == undefined || count <= 0) {
+  //         updatedCartList[index].qty = 1;
+  //       } else {
+  //         updatedCartList[index].qty = count;
+  //       }
+  //     } else {
+  //       if (type === 'remove' && updatedCartList[index].qty > 1) {
+  //         updatedCartList[index].qty = parseInt(updatedCartList[index].qty) - 1;
+  //       } else if (type === 'add') {
+  //         updatedCartList[index].qty = parseInt(updatedCartList[index].qty) + 1;
+  //       }
 
-        if (updatedCartList[index].qty === 0) {
-          updatedCartList.splice(index, 1);
-        }
-      }
-    }
+  //       if (updatedCartList[index].qty === 0) {
+  //         updatedCartList.splice(index, 1);
+  //       }
+  //     }
+  //   }
 
-    setCartList(updatedCartList);
-  };
+  //   setCartList(updatedCartList);
+  // };
 
   const openNcModal = () => {
     setNcModal(true);
@@ -458,14 +421,14 @@ const Dashboard = () => {
       setIsSante(false);
       getProductByCat(productCategories[0]?.pr_cat_code);
       // getProductByCat(215);
-      setCartList([]);
+      clearCart();
     } else {
       setIsSante(true);
       getProductByCat(productCategories[0]?.pr_cat_code);
       // getProductByCat(215)
       setProducts(santeData);
       setProductsRef(santeData);
-      setCartList([]);
+      clearCart();
     }
   };
 
@@ -492,77 +455,6 @@ const Dashboard = () => {
           multi_phonepay: ' 0.0',
         });
     }
-  };
-
-  const calculateTotalItemTaxableAmount = (
-    cartList: any,
-    applyDiscount: any,
-    discountType: any,
-    selectedDiscount: any,
-  ): number => {
-    return cartList.reduce((total: any, item: any) => {
-      let discountPercentage = 0;
-      if (applyDiscount) {
-        if (discountType === 'DEFAULT_DISCOUNT') {
-          discountPercentage = parseFloat(item.discount_perc || 0);
-        } else if (
-          discountType === 'Cat_discount' ||
-          discountType === 'Flat_discount'
-        ) {
-          discountPercentage = parseFloat(selectedDiscount);
-        }
-      }
-
-      const price = parseFloat(String(item.basic_rate ?? 0)) * (item.qty ?? 0);
-
-      const discountAmount = parseFloat(
-        ((price * (discountPercentage ?? 0)) / 100).toFixed(2),
-      );
-
-      const itemTaxableAmount = price - discountAmount;
-
-      return total + parseFloat(itemTaxableAmount.toFixed(2));
-    }, 0);
-  };
-
-  const calculateItemTaxAmt = (
-    cartList: any,
-    applyDiscount: any,
-    discountType: any,
-    selectedDiscount: any,
-  ): number => {
-    return cartList.reduce((total: any, item: any) => {
-      let discountPercentage = 0;
-      if (applyDiscount) {
-        if (discountType === 'DEFAULT_DISCOUNT') {
-          discountPercentage = parseFloat(item.discount_perc || 0);
-        } else if (
-          discountType === 'Cat_discount' ||
-          discountType === 'Flat_discount'
-        ) {
-          discountPercentage = parseFloat(selectedDiscount);
-        }
-      }
-
-      const basicRate = parseFloat(item.basic_rate ?? 0);
-      const qty = parseFloat(item.qty ?? 0);
-      const discountPerc = discountPercentage ?? 0;
-      const taxPerc = parseFloat(item.basic_tax_percent ?? 0);
-
-      const price = basicRate * qty;
-
-      const discountAmount = parseFloat(
-        ((price * discountPerc) / 100).toFixed(2),
-      );
-
-      let itemTaxableAmount = price - discountAmount;
-
-      const itemTaxAmt = parseFloat(
-        ((itemTaxableAmount * taxPerc) / 100).toFixed(2),
-      );
-
-      return total + itemTaxAmt;
-    }, 0);
   };
 
   const getCartTotal2 = () => {
@@ -604,18 +496,6 @@ const Dashboard = () => {
       discount: discount,
       totalBasic: totalBasic,
     };
-  };
-  const getTotalTaxApplied = () => {
-    const totalAmt = cartList.reduce((total: any, item: any) => {
-      const itemTotal = item.qty * parseInt(item.basic_rate);
-      const itemDiscountedTotal =
-        itemTotal - (itemTotal * selectedDiscount) / 100;
-      const taxPercentage = parseInt(item.basic_tax_percent); // Get the tax percentage from the item
-      const taxAmount = (itemDiscountedTotal * taxPercentage) / 100; // Calculate tax amount based on tax percentage
-      return total + taxAmount; // Add tax amount to the total
-    }, 0);
-
-    return Number(totalAmt.toFixed(2));
   };
 
   const newPrintGenerate = async () => {
@@ -756,7 +636,7 @@ const Dashboard = () => {
     console.log('sante_bills', reqObj);
     setIsLoading(false);
     setCustInfo(false);
-    setCartList([]);
+    clearCart();
     setPaymentType({});
     setSelectedDiscount(0);
     setMultipayment({
@@ -787,12 +667,16 @@ const Dashboard = () => {
       });
       return {...cv, qty: quantity};
     });
-    let group_to_values = removedDiscountArray.reduce(function (obj, item) {
+    let group_to_values = removedDiscountArray.reduce(function (
+      obj: any,
+      item: any,
+    ) {
       obj[item.cgst_tax] = obj[item.cgst_tax] || [];
       obj[item.cgst_tax].push(item.cgst_tax_amount * item.qty);
       return obj;
-    }, {});
-    let groups = Object.keys(group_to_values).map(function (key) {
+    },
+    {});
+    let groups = Object.keys(group_to_values).map(function (key: any) {
       return {
         cgst: key,
         amount: group_to_values[key].reduce((a: any, b: any) => a + b, 0),
@@ -909,343 +793,496 @@ const Dashboard = () => {
   //   // },
   // };
 
-  const onCounterBillGenerate = async (custInfo: any) => {
-    let showTax = false;
+  // const onCounterBillGenerate = async (custInfo: any) => {
+  //   let showTax = false;
 
+  //   const santheSetting = appSettings.find(
+  //     (setting: any) => setting.setting_name === 'HSN_DISPLAY_OPTION',
+  //   );
+
+  //   if (santheSetting) {
+  //     const access = santheSetting.setting_access;
+  //     if (access === '0' || access === 0) {
+  //       // setShowTax(false);
+  //       showTax = false;
+  //     } else if (access === '1' || access === 1) {
+  //       // setShowTax(true);
+  //       showTax = true;
+  //     }
+  //   }
+
+  //   const {date, time, dateISO} = getCurrentDatTime();
+  //   const {totalAmt, disAmt, finalWithTax, discount, totalBasic} =
+  //     getCartTotal2();
+  //   let {bill_id, in_no} = await getLastValues('counter_bills', [
+  //     'bill_id',
+  //     'in_no',
+  //   ]);
+
+  //   let {item_id} = await getLastValues('counter_items', ['item_id']);
+
+  //   let {payment_id} = await getLastValues('counter_payments', ['payment_id']);
+
+  //   const financialYear = getCurrentFinancialYear();
+
+  //   const payment = [];
+  //   if (paymentType.setting_name === 'MULTI') {
+  //     Object.entries(multiPayment).forEach(([paymentType, amount]: any) => {
+  //       if (parseFloat(amount) !== 0) {
+  //         const obj = {
+  //           payment_date: date,
+  //           payment_types: 'MULTI',
+  //           multi_payment: parseFloat(amount),
+  //           branch: user.branch,
+  //           user_name: user.useid,
+  //           payment_status: 'pending',
+  //           paid_amount: 0,
+  //           bill_id: 0,
+  //           payment_id: 0,
+  //         };
+  //         console.log('multiPayment', amount, obj);
+  //         payment.push(obj);
+  //       }
+  //     });
+  //   } else {
+  //     const obj = {
+  //       payment_date: date,
+  //       payment_types: paymentType.setting_name,
+  //       multi_payment: Math.round(totalAmt),
+  //       branch: user.branch,
+  //       user_name: user.useid,
+  //       payment_status: 'pending',
+  //       paid_amount: 0,
+  //       bill_id: 0,
+  //       payment_id: 0,
+  //     };
+  //     payment.push(obj);
+  //   }
+
+  //   if (in_no === null || in_no === undefined) {
+  //     const response: any = await getSession('loginData');
+  //     const data = JSON.parse(response);
+  //     if (
+  //       data?.counter_bill_id !== null &&
+  //       data?.counter_bill_id !== undefined
+  //     ) {
+  //       in_no = parseInt(data?.counter_bill_id);
+  //     } else {
+  //       in_no = 0;
+  //     }
+  //   }
+
+  //   if (item_id == null || item_id == undefined) {
+  //     const response: any = await getSession('loginData');
+  //     const data = JSON.parse(response);
+  //     if (
+  //       data?.counter_item_id !== null &&
+  //       data?.counter_item_id !== undefined
+  //     ) {
+  //       item_id = parseInt(data?.counter_item_id);
+  //     } else {
+  //       item_id = 0;
+  //     }
+  //   }
+
+  //   if (payment_id == null || payment_id == undefined) {
+  //     const response: any = await getSession('loginData');
+  //     const data = JSON.parse(response);
+  //     if (
+  //       data?.counter_payment_id !== null &&
+  //       data?.counter_payment_id !== undefined
+  //     ) {
+  //       payment_id = parseInt(data?.counter_payment_id);
+  //     } else {
+  //       payment_id = 0;
+  //     }
+  //   }
+
+  //   const billData: any = {
+  //     bill_id: parseInt(in_no) + 1,
+  //     bno: 0,
+  //     bill_no: '0',
+  //     bill_date: '0',
+  //     bill_time: '0',
+  //     invoice_no: `${user.branch}${financialYear}${parseInt(in_no) + 1}`,
+  //     invoice_date: dateISO,
+  //     invoice_time: time,
+  //     edit_date: '0',
+  //     edit_time: '0',
+  //     cust_name: custInfo.name,
+  //     cust_phone: custInfo.mobile,
+  //     cust_gst: '0',
+  //     cust_address: '0',
+  //     album_no: '0',
+  //     shape: '0',
+  //     remarks: '0',
+  //     ord_taken_by: '0',
+  //     ord_edited_by: '0',
+  //     total_basic_price: totalBasic,
+  //     disc_total_amt: 0.0,
+  //     basic_aft_disc: calculateTotalItemTaxableAmount(
+  //       cartList,
+  //       applyDiscount,
+  //       discountType,
+  //       selectedDiscount,
+  //     ),
+  //     tax_aft_disc: calculateItemTaxAmt(
+  //       cartList,
+  //       applyDiscount,
+  //       discountType,
+  //       selectedDiscount,
+  //     ),
+  //     disc_given_by: discountDetails.givenBy,
+  //     disc_given_to: discountDetails.givenTo,
+  //     total_amount: Math.round(totalAmt),
+  //     advance_amount: 0.0,
+  //     balance_amount: 0.0,
+  //     paid_amt: Math.round(totalAmt),
+  //     total_paid_amount: Math.round(totalAmt),
+  //     refunded_amt: 0.0,
+  //     mop: paymentType.setting_name,
+  //     final_mop: paymentType.setting_name,
+  //     multi_paytm: multiPayment.multi_paytm,
+  //     multi_card: multiPayment.multi_card,
+  //     multi_cash: multiPayment.multi_cash,
+  //     multi_phonepay: 0.0,
+  //     nc_cust_name: ncModalData.nc_cust_name,
+  //     nc_cust_phone: ncModalData.nc_cust_phone,
+  //     nc_approved_by: ncModalData.nc_approved_by,
+  //     cheque_no: '0',
+  //     cheque_date: '0',
+  //     cheque_bank: '0',
+  //     neft_trans_no: '0',
+  //     neft_date: '0',
+  //     neft_amount: 0.0,
+  //     credit_cust_name: '0',
+  //     credit_cust_phone: '0',
+  //     delivery_date: '0',
+  //     delivery_time: '0',
+  //     delivery_day: '0',
+  //     delivery_mode: '0',
+  //     picked_up_name: '0',
+  //     picked_up_id: '0',
+  //     msg: '0',
+  //     ord_remarks: '0',
+  //     cancelled_date: '0',
+  //     refunded_date: '',
+  //     status: 'closed',
+  //     stlmnt_status: '0',
+  //     stlmnt_date: '0',
+  //     branch: user.branch,
+  //     re_print: 1.0,
+  //     sync_status: 'pending',
+  //     user_id: user.useid,
+  //     order_type: '0',
+  //     callback_status: 'false',
+  //     record_delete: 'NO',
+  //     max_postpone_date: '0',
+  //     in_no: parseInt(in_no) + 1,
+  //   };
+
+  //   let Items: any = [];
+  //   let payments: any = [];
+  //   await inserData('counter_bills', billData);
+  //   let billId = parseInt(in_no) + 1;
+  //   if (billId !== null && billId !== undefined) {
+  //     try {
+  //       // Process items sequentially
+  //       for (let index = 0; index < cartList.length; index++) {
+  //         const item = cartList[index];
+  //         const data = transformItem2(
+  //           item,
+  //           billId,
+  //           item_id + index,
+  //           discountType,
+  //           selectedDiscount,
+  //           isDiscountApplied,
+  //         );
+  //         Items.push(data);
+  //         await inserData('counter_items', data);
+  //       }
+
+  //       // Process payments sequentially
+  //       for (const pay of payment) {
+  //         pay.payment_id = parseInt(payment_id) + 1;
+  //         pay.bill_id = billId;
+  //         payments.push(pay);
+  //         await inserData('counter_payments', pay);
+  //       }
+  //     } catch (error) {
+  //       console.error('Database insertion error:', error);
+  //     }
+  //   }
+  //   billData.counter_items = Items;
+  //   billData.counter_payments = payments;
+  //   console.log('billData', cartList);
+
+  //   let group_to_values = cartList.reduce(function (obj: any, item: any) {
+  //     obj[item.cgst_tax] = obj[item.cgst_tax] || [];
+  //     obj[item.cgst_tax].push(item.cgst_tax_amount * item.qty);
+  //     return obj;
+  //   }, {});
+  //   let groups = Object.keys(group_to_values).map(function (key) {
+  //     return {
+  //       cgst: key,
+  //       amount: group_to_values[key].reduce((a: any, b: any) => a + b, 0),
+  //     };
+  //   });
+
+  //   // console.log("groups", groups);
+
+  //   const groupedItemsByToken = cartList.reduce((acc: any, item: any) => {
+  //     if (item?.token === '1') {
+  //       const {tokengroup} = item;
+  //       if (!acc[tokengroup]) {
+  //         acc[tokengroup] = [];
+  //       }
+  //       acc[tokengroup].push(item);
+  //     }
+  //     return acc;
+  //   }, {});
+
+  //   const processTokenGroup = (
+  //     groupKey: string,
+  //     groupItems: any[],
+  //     remainingGroups: string[],
+  //   ) => {
+  //     const singleGroupData = {[groupKey]: groupItems};
+
+  //     Alert.alert(
+  //       'Alert',
+  //       `Do you want to print KOT?`,
+  //       [
+  //         {
+  //           text: 'Cancel',
+  //           onPress: () => {
+  //             console.log(`Cancel Pressed for ${groupKey}`);
+  //             // Process next group if available
+  //             if (remainingGroups.length > 0) {
+  //               const nextGroupKey = remainingGroups[0];
+  //               const nextGroupItems = groupedItemsByToken[nextGroupKey];
+  //               const nextRemainingGroups = remainingGroups.slice(1);
+  //               processTokenGroup(
+  //                 nextGroupKey,
+  //                 nextGroupItems,
+  //                 nextRemainingGroups,
+  //               );
+  //             }
+  //           },
+  //           style: 'cancel',
+  //         },
+  //         {
+  //           text: 'OK',
+  //           onPress: () => {
+  //             printerDetails.onCounterBillGenerateWithToken(
+  //               outletDetails?.branch_title,
+  //               outletDetails?.org_name,
+  //               outletDetails?.gstin_no,
+  //               outletDetails?.address1,
+  //               outletDetails?.address2,
+  //               outletDetails?.cin_no,
+  //               groupItems, // Send only current group items
+  //               outletDetails?.branch,
+  //               billId.toString(),
+  //               `${user.branch}${financialYear}${parseInt(in_no) + 1}`,
+  //               date,
+  //               time,
+  //               normalCartValues?.CartTotalBasic,
+  //               normalCartValues?.CartTotal,
+  //               normalCartValues?.CartTotalBasic,
+  //               normalCartValues?.TotalTaxApplied,
+  //               groups,
+  //               JSON.stringify(singleGroupData), // Send only current group
+  //               tokenNumber,
+  //               custInfo?.name,
+  //               custInfo?.mobile,
+  //               custInfo?.gstNumber,
+  //               showTax,
+  //               (err: any) => {
+  //                 console.log(err, 'error message !!!!!!!!!!!!!!!!');
+  //               },
+  //               (msg: any) => {
+  //                 console.log(msg, 'success message !!!!!!!!!!!!!!!!');
+  //               },
+  //             );
+
+  //             setTokenNumber(tokenNumber + 1);
+
+  //             // Process next group if available
+  //             if (remainingGroups.length > 0) {
+  //               const nextGroupKey = remainingGroups[0];
+  //               const nextGroupItems = groupedItemsByToken[nextGroupKey];
+  //               const nextRemainingGroups = remainingGroups.slice(1);
+  //               processTokenGroup(
+  //                 nextGroupKey,
+  //                 nextGroupItems,
+  //                 nextRemainingGroups,
+  //               );
+  //             }
+  //           },
+  //         },
+  //       ],
+  //       {cancelable: false},
+  //     );
+  //   };
+
+  //   console.log(groupedItemsByToken, 'groupedItemsByToken');
+  //   console.log(groupedItems, 'groupedItems');
+
+  //   setGroupedItems(groupedItemsByToken);
+  //   printerDetails.onCounterBillGenerate(
+  //     outletDetails?.branch_title,
+  //     outletDetails?.org_name,
+  //     outletDetails?.gstin_no,
+  //     outletDetails?.address1,
+  //     outletDetails?.address2,
+  //     outletDetails?.cin_no,
+  //     cartList,
+  //     outletDetails?.branch,
+  //     billId.toString(),
+  //     `${user.branch}${financialYear}${parseInt(in_no) + 1}`,
+  //     date,
+  //     time,
+  //     // sumBasic(cartList),
+  //     normalCartValues?.CartTotalBasic,
+  //     // sumTotal(cartList),
+  //     normalCartValues?.CartTotal,
+  //     // sumBasic(cartList),
+  //     normalCartValues?.CartTotalBasic,
+  //     // sumTax(cartList),
+  //     normalCartValues?.TotalTaxApplied,
+  //     groups,
+  //     custInfo?.name,
+  //     custInfo?.mobile,
+  //     custInfo?.gstNumber,
+  //     showTax,
+  //     (err: any) => {
+  //       console.log(err, 'error message !!!!!!!!!!!!!!!!');
+  //     },
+  //     (msg: any) => {
+  //       console.log(msg, 'successs message !!!!!!!!!!!!!!!!');
+  //     },
+  //   );
+
+  //   if (Object.keys(groupedItemsByToken).length !== 0) {
+  //     const groupKeys = Object.keys(groupedItemsByToken);
+  //     const firstGroupKey = groupKeys[0];
+  //     const firstGroupItems = groupedItemsByToken[firstGroupKey];
+  //     const remainingGroups = groupKeys.slice(1);
+
+  //     processTokenGroup(firstGroupKey, firstGroupItems, remainingGroups);
+  //   }
+
+  //   setIsLoading(false);
+  //   setCustInfo(false);
+  //   setCartMap({});
+  //   setPaymentType({});
+  //   setSelectedDiscount(0);
+  //   setMultipayment({
+  //     multi_paytm: '0.0',
+  //     multi_card: ' 0.0',
+  //     multi_cash: ' 0.0',
+  //     multi_phonepay: ' 0.0',
+  //   });
+  //   setNcModalData({
+  //     nc_cust_name: '',
+  //     nc_cust_phone: '',
+  //     nc_approved_by: '',
+  //   });
+  // };
+
+  const onCounterBillGenerate = async (custInfo: any) => {
+    setIsLoading(true);
+
+    /** ✅ 1️⃣  Collect tax flag */
+    let showTax = false;
     const santheSetting = appSettings.find(
       (setting: any) => setting.setting_name === 'HSN_DISPLAY_OPTION',
     );
+    if (santheSetting?.setting_access === '1') showTax = true;
 
-    if (santheSetting) {
-      const access = santheSetting.setting_access;
-      if (access === '0' || access === 0) {
-        // setShowTax(false);
-        showTax = false;
-      } else if (access === '1' || access === 1) {
-        // setShowTax(true);
-        showTax = true;
-      }
-    }
-
+    /** ✅ 2️⃣  Get time + totals */
     const {date, time, dateISO} = getCurrentDatTime();
     const {totalAmt, disAmt, finalWithTax, discount, totalBasic} =
       getCartTotal2();
+
+    /** ✅ 3️⃣  Get last IDs */
     let {bill_id, in_no} = await getLastValues('counter_bills', [
       'bill_id',
       'in_no',
     ]);
-
     let {item_id} = await getLastValues('counter_items', ['item_id']);
-
     let {payment_id} = await getLastValues('counter_payments', ['payment_id']);
+
+    /** Fallback from session */
+    const loginData: any = JSON.parse(await getSession('loginData'));
+    in_no = in_no ?? loginData.counter_bill_id ?? 0;
+    item_id = item_id ?? loginData.counter_item_id ?? 0;
+    payment_id = payment_id ?? loginData.counter_payment_id ?? 0;
 
     const financialYear = getCurrentFinancialYear();
 
-    const payment = [];
-    if (paymentType.setting_name === 'MULTI') {
-      Object.entries(multiPayment).forEach(([paymentType, amount]: any) => {
-        if (parseFloat(amount) !== 0) {
-          const obj = {
-            payment_date: date,
-            payment_types: 'MULTI',
-            multi_payment: parseFloat(amount),
-            branch: user.branch,
-            user_name: user.useid,
-            payment_status: 'pending',
-            paid_amount: 0,
-            bill_id: 0,
-            payment_id: 0,
-          };
-          console.log('multiPayment', amount, obj);
-          payment.push(obj);
-        }
-      });
-    } else {
-      const obj = {
-        payment_date: date,
-        payment_types: paymentType.setting_name,
-        multi_payment: Math.round(totalAmt),
-        branch: user.branch,
-        user_name: user.useid,
-        payment_status: 'pending',
-        paid_amount: 0,
-        bill_id: 0,
-        payment_id: 0,
-      };
-      payment.push(obj);
-    }
-
-    if (in_no === null || in_no === undefined) {
-      const response: any = await getSession('loginData');
-      const data = JSON.parse(response);
-      if (
-        data?.counter_bill_id !== null &&
-        data?.counter_bill_id !== undefined
-      ) {
-        in_no = parseInt(data?.counter_bill_id);
-      } else {
-        in_no = 0;
-      }
-    }
-
-    if (item_id == null || item_id == undefined) {
-      const response: any = await getSession('loginData');
-      const data = JSON.parse(response);
-      if (
-        data?.counter_item_id !== null &&
-        data?.counter_item_id !== undefined
-      ) {
-        item_id = parseInt(data?.counter_item_id);
-      } else {
-        item_id = 0;
-      }
-    }
-
-    if (payment_id == null || payment_id == undefined) {
-      const response: any = await getSession('loginData');
-      const data = JSON.parse(response);
-      if (
-        data?.counter_payment_id !== null &&
-        data?.counter_payment_id !== undefined
-      ) {
-        payment_id = parseInt(data?.counter_payment_id);
-      } else {
-        payment_id = 0;
-      }
-    }
-
+    /** ✅ 4️⃣ Build billData */
     const billData: any = {
       bill_id: parseInt(in_no) + 1,
-      bno: 0,
-      bill_no: '0',
-      bill_date: '0',
-      bill_time: '0',
       invoice_no: `${user.branch}${financialYear}${parseInt(in_no) + 1}`,
       invoice_date: dateISO,
       invoice_time: time,
-      edit_date: '0',
-      edit_time: '0',
       cust_name: custInfo.name,
       cust_phone: custInfo.mobile,
-      cust_gst: '0',
-      cust_address: '0',
-      album_no: '0',
-      shape: '0',
-      remarks: '0',
-      ord_taken_by: '0',
-      ord_edited_by: '0',
       total_basic_price: totalBasic,
-      disc_total_amt: 0.0,
-      basic_aft_disc: calculateTotalItemTaxableAmount(
-        cartList,
-        applyDiscount,
-        discountType,
-        selectedDiscount,
-      ),
-      tax_aft_disc: calculateItemTaxAmt(
-        cartList,
-        applyDiscount,
-        discountType,
-        selectedDiscount,
-      ),
-      disc_given_by: discountDetails.givenBy,
-      disc_given_to: discountDetails.givenTo,
       total_amount: Math.round(totalAmt),
-      advance_amount: 0.0,
-      balance_amount: 0.0,
       paid_amt: Math.round(totalAmt),
       total_paid_amount: Math.round(totalAmt),
-      refunded_amt: 0.0,
       mop: paymentType.setting_name,
       final_mop: paymentType.setting_name,
-      multi_paytm: multiPayment.multi_paytm,
-      multi_card: multiPayment.multi_card,
-      multi_cash: multiPayment.multi_cash,
-      multi_phonepay: 0.0,
-      nc_cust_name: ncModalData.nc_cust_name,
-      nc_cust_phone: ncModalData.nc_cust_phone,
-      nc_approved_by: ncModalData.nc_approved_by,
-      cheque_no: '0',
-      cheque_date: '0',
-      cheque_bank: '0',
-      neft_trans_no: '0',
-      neft_date: '0',
-      neft_amount: 0.0,
-      credit_cust_name: '0',
-      credit_cust_phone: '0',
-      delivery_date: '0',
-      delivery_time: '0',
-      delivery_day: '0',
-      delivery_mode: '0',
-      picked_up_name: '0',
-      picked_up_id: '0',
-      msg: '0',
-      ord_remarks: '0',
-      cancelled_date: '0',
-      refunded_date: '',
-      status: 'closed',
-      stlmnt_status: '0',
-      stlmnt_date: '0',
       branch: user.branch,
-      re_print: 1.0,
-      sync_status: 'pending',
       user_id: user.useid,
-      order_type: '0',
-      callback_status: 'false',
-      record_delete: 'NO',
-      max_postpone_date: '0',
+      status: 'closed',
+      sync_status: 'pending',
       in_no: parseInt(in_no) + 1,
     };
 
-    let Items: any = [];
-    let payments: any = [];
-    await inserData('counter_bills', billData);
-    let billId = parseInt(in_no) + 1;
-    if (billId !== null && billId !== undefined) {
-      try {
-        // Process items sequentially
-        for (let index = 0; index < cartList.length; index++) {
-          const item = cartList[index];
-          const data = transformItem2(
-            item,
-            billId,
-            item_id + index,
-            discountType,
-            selectedDiscount,
-            isDiscountApplied,
-          );
-          Items.push(data);
-          await inserData('counter_items', data);
-        }
+    /** ✅ 5️⃣ Items + payments */
+    let Items: any[] = [];
+    let payments: any[] = [];
 
-        // Process payments sequentially
-        for (const pay of payment) {
-          pay.payment_id = parseInt(payment_id) + 1;
-          pay.bill_id = billId;
-          payments.push(pay);
-          await inserData('counter_payments', pay);
-        }
-      } catch (error) {
-        console.error('Database insertion error:', error);
-      }
-    }
-    billData.counter_items = Items;
-    billData.counter_payments = payments;
-    console.log('billData', cartList);
-
-    let group_to_values = cartList.reduce(function (obj: any, item: any) {
-      obj[item.cgst_tax] = obj[item.cgst_tax] || [];
-      obj[item.cgst_tax].push(item.cgst_tax_amount * item.qty);
-      return obj;
-    }, {});
-    let groups = Object.keys(group_to_values).map(function (key) {
-      return {
-        cgst: key,
-        amount: group_to_values[key].reduce((a: any, b: any) => a + b, 0),
-      };
+    cartList.forEach((item: any, index: number) => {
+      const data = transformItem2(
+        item,
+        billData.bill_id,
+        item_id + index,
+        discountType,
+        selectedDiscount,
+        isDiscountApplied,
+      );
+      Items.push(data);
     });
 
-    // console.log("groups", groups);
-
-    const groupedItemsByToken = cartList.reduce((acc: any, item: any) => {
-      if (item?.token === '1') {
-        const {tokengroup} = item;
-        if (!acc[tokengroup]) {
-          acc[tokengroup] = [];
+    const paymentList = [];
+    if (paymentType.setting_name === 'MULTI') {
+      Object.entries(multiPayment).forEach(([k, v]: any) => {
+        if (+v !== 0) {
+          payments.push({
+            payment_id: payment_id++,
+            bill_id: billData.bill_id,
+            payment_types: 'MULTI',
+            multi_payment: +v,
+            payment_status: 'pending',
+          });
         }
-        acc[tokengroup].push(item);
-      }
-      return acc;
-    }, {});
+      });
+    } else {
+      payments.push({
+        payment_id: payment_id++,
+        bill_id: billData.bill_id,
+        payment_types: paymentType.setting_name,
+        multi_payment: Math.round(totalAmt),
+        payment_status: 'pending',
+      });
+    }
 
-    const processTokenGroup = (
-      groupKey: string,
-      groupItems: any[],
-      remainingGroups: string[],
-    ) => {
-      const singleGroupData = {[groupKey]: groupItems};
-
-      Alert.alert(
-        'Alert',
-        `Do you want to print KOT?`,
-        [
-          {
-            text: 'Cancel',
-            onPress: () => {
-              console.log(`Cancel Pressed for ${groupKey}`);
-              // Process next group if available
-              if (remainingGroups.length > 0) {
-                const nextGroupKey = remainingGroups[0];
-                const nextGroupItems = groupedItemsByToken[nextGroupKey];
-                const nextRemainingGroups = remainingGroups.slice(1);
-                processTokenGroup(
-                  nextGroupKey,
-                  nextGroupItems,
-                  nextRemainingGroups,
-                );
-              }
-            },
-            style: 'cancel',
-          },
-          {
-            text: 'OK',
-            onPress: () => {
-              printerDetails.onCounterBillGenerateWithToken(
-                outletDetails?.branch_title,
-                outletDetails?.org_name,
-                outletDetails?.gstin_no,
-                outletDetails?.address1,
-                outletDetails?.address2,
-                outletDetails?.cin_no,
-                groupItems, // Send only current group items
-                outletDetails?.branch,
-                billId.toString(),
-                `${user.branch}${financialYear}${parseInt(in_no) + 1}`,
-                date,
-                time,
-                normalCartValues?.CartTotalBasic,
-                normalCartValues?.CartTotal,
-                normalCartValues?.CartTotalBasic,
-                normalCartValues?.TotalTaxApplied,
-                groups,
-                JSON.stringify(singleGroupData), // Send only current group
-                tokenNumber,
-                custInfo?.name,
-                custInfo?.mobile,
-                custInfo?.gstNumber,
-                showTax,
-                (err: any) => {
-                  console.log(err, 'error message !!!!!!!!!!!!!!!!');
-                },
-                (msg: any) => {
-                  console.log(msg, 'success message !!!!!!!!!!!!!!!!');
-                },
-              );
-
-              setTokenNumber(tokenNumber + 1);
-
-              // Process next group if available
-              if (remainingGroups.length > 0) {
-                const nextGroupKey = remainingGroups[0];
-                const nextGroupItems = groupedItemsByToken[nextGroupKey];
-                const nextRemainingGroups = remainingGroups.slice(1);
-                processTokenGroup(
-                  nextGroupKey,
-                  nextGroupItems,
-                  nextRemainingGroups,
-                );
-              }
-            },
-          },
-        ],
-        {cancelable: false},
-      );
-    };
-
-    console.log(groupedItemsByToken, 'groupedItemsByToken');
-    console.log(groupedItems, 'groupedItems');
-
-    setGroupedItems(groupedItemsByToken);
+    /** ✅ 7️⃣ Print Immediately (FAST ✅) */
     printerDetails.onCounterBillGenerate(
       outletDetails?.branch_title,
       outletDetails?.org_name,
@@ -1255,19 +1292,15 @@ const Dashboard = () => {
       outletDetails?.cin_no,
       cartList,
       outletDetails?.branch,
-      billId.toString(),
-      `${user.branch}${financialYear}${parseInt(in_no) + 1}`,
+      billData.bill_id.toString(),
+      billData.invoice_no,
       date,
       time,
-      // sumBasic(cartList),
       normalCartValues?.CartTotalBasic,
-      // sumTotal(cartList),
       normalCartValues?.CartTotal,
-      // sumBasic(cartList),
       normalCartValues?.CartTotalBasic,
-      // sumTax(cartList),
       normalCartValues?.TotalTaxApplied,
-      groups,
+      [], // groups if needed
       custInfo?.name,
       custInfo?.mobile,
       custInfo?.gstNumber,
@@ -1277,90 +1310,29 @@ const Dashboard = () => {
       },
       (msg: any) => {
         console.log(msg, 'successs message !!!!!!!!!!!!!!!!');
+        /** ✅ 6️⃣ Queue DB work → runs async + retry */
+        queueDBInsert({
+          billData,
+          items: Items,
+          payments,
+        });
       },
     );
 
-    if (Object.keys(groupedItemsByToken).length !== 0) {
-      const groupKeys = Object.keys(groupedItemsByToken);
-      const firstGroupKey = groupKeys[0];
-      const firstGroupItems = groupedItemsByToken[firstGroupKey];
-      const remainingGroups = groupKeys.slice(1);
-
-      processTokenGroup(firstGroupKey, firstGroupItems, remainingGroups);
-    }
-
-    // if (Object.keys(groupedItemsByToken).length != 0) {
-    //   Alert.alert(
-    //     "Alert",
-    //     "Do you want to print KOT?",
-    //     [
-    //       {
-    //         text: "Cancel",
-    //         onPress: () => console.log("Cancel Pressed"),
-    //         style: "cancel",
-    //       },
-    //       {
-    //         text: "OK",
-    //         onPress: () => {
-    //           NGXBillingModule.onCounterBillGenerateWithToken(
-    //             outletDetails?.branch_title,
-    //             outletDetails?.org_name,
-    //             outletDetails?.gstin_no,
-    //             outletDetails?.address1,
-    //             outletDetails?.address2,
-    //             outletDetails?.cin_no,
-    //             cartList,
-    //             outletDetails?.branch,
-    //             billId.toString(),
-    //             `${user.branch}${financialYear}${parseInt(in_no) + 1}`,
-    //             date,
-    //             time,
-    //             normalCartValues?.CartTotalBasic,
-    //             normalCartValues?.CartTotal,
-
-    //             normalCartValues?.CartTotalBasic,
-
-    //             normalCartValues?.TotalTaxApplied,
-
-    //             groups,
-    //             Object.keys(groupedItemsByToken).length === 0
-    //               ? ""
-    //               : JSON.stringify(groupedItemsByToken),
-
-    //             Object.keys(groupedItemsByToken).length === 0
-    //               ? null
-    //               : tokenNumber,
-    //             custInfo?.name,
-    //             custInfo?.mobile,
-    //             custInfo?.gstNumber,
-    //             showTax,
-
-    //             (err: any) => {
-    //               console.log(err, "error message !!!!!!!!!!!!!!!!");
-    //             },
-    //             (msg: any) => {
-    //               console.log(msg, "successs message !!!!!!!!!!!!!!!!");
-    //             }
-    //           );
-    //           setTokenNumber(tokenNumber + 1);
-    //         },
-    //       },
-    //     ],
-    //     { cancelable: false } // Optional: prevents dismissing the alert by tapping outside
-    //   );
-    // }
-
+    /** ✅ 8️⃣ Reset UI */
     setIsLoading(false);
     setCustInfo(false);
-    setCartList([]);
+    clearCart();
     setPaymentType({});
     setSelectedDiscount(0);
+
     setMultipayment({
       multi_paytm: '0.0',
-      multi_card: ' 0.0',
-      multi_cash: ' 0.0',
-      multi_phonepay: ' 0.0',
+      multi_card: '0.0',
+      multi_cash: '0.0',
+      multi_phonepay: '0.0',
     });
+
     setNcModalData({
       nc_cust_name: '',
       nc_cust_phone: '',
@@ -1455,56 +1427,6 @@ const Dashboard = () => {
     setSyncDone(true);
   };
 
-  const iterateUrls = async (apiResponse: any, urls: any) => {
-    const apiPromises = [];
-    for (const item of apiResponse) {
-      const countProperty = Object.keys(item)[0];
-      const count = item[countProperty];
-
-      if (count > 0) {
-        const apiUrlKey: any = apiUrlMapping[countProperty];
-        if (apiUrlKey) {
-          const apiUrl = urls[apiUrlKey];
-          // Call your API function here with apiUrl
-          console.log(`Making API call for ${apiUrlKey}: ${apiUrl}`);
-
-          try {
-            apiPromises.push(
-              await getInitialData(
-                apiUrlKey,
-                apiUrl,
-                saveCategories,
-                saveProducts,
-                saveAppSettings,
-                saveMastersCreationData,
-                setDiscountList,
-                setDiscountType,
-                noInternet,
-                user.branch,
-                setPaymentList,
-                setSanteDiscountRatio,
-                setOutletDetails,
-              ),
-            );
-          } catch (e) {
-            console.error('API calls :', e);
-          }
-        }
-      }
-      Promise.all(apiPromises)
-        .then(() => {
-          // All API calls are resolved, so you can navigate to 'Dashboard'
-          setIsLoading(false);
-          //  getSanteData()
-        })
-        .catch(error => {
-          // Handle errors if any of the API calls fail
-          setIsLoading(false);
-          console.error('API calls failed:', error);
-        });
-    }
-  };
-
   const syncCounterBill = async (
     mainTable: any,
     itemTable: any,
@@ -1583,7 +1505,7 @@ const Dashboard = () => {
   };
 
   const cartRefresh = () => {
-    setCartList([]);
+    clearCart();
     setPaymentType({});
     setMultipayment({
       multi_paytm: '0.0',
@@ -1619,99 +1541,49 @@ const Dashboard = () => {
   };
   return (
     <SafeAreaView style={{flex: 1}}>
-      {orientation === 'LANDSCAPE' ? (
-        <LandscapeDashboard
-          onSearch={onSearch}
-          onSync={onSync}
-          handleAddToCart={handleAddToCart}
-          handleQty={handleQty}
-          getItemTotal={getItemTotal}
-          getItemQty={getItemQty}
-          getCartTotal={getCartTotal}
-          openNcModal={openNcModal}
-          openMulti={openMulti}
-          onPaymentSelect={onPaymentSelect}
-          enableSante={enableSante}
-          cartRefresh={cartRefresh}
-          getItemQtyWithCarryBag={getItemQtyWithCarryBag}
-          itemsForDiscount={itemsForDiscount}
-          newPrintGenerate={newPrintGenerate}
-          onDayDone={onDayDone}
-          getProductByCat={getProductByCat}
-          onNcDone={onNcDone}
-          onAccept={onAccept}
-          onCounterBillGenerate={onCounterBillGenerate}
-          isLoading={isLoading}
-          isSante={isSante}
-          numColumns={numColumns}
-          products={products}
-          cartList={cartList}
-          paymentType={paymentType}
-          categories={categories}
-          custInfo={custInfo}
-          setCustInfo={setCustInfo}
-          setNoSyncData={setNoSyncData}
-          noSyncdata={noSyncdata}
-          syncErr={syncErr}
-          setSyncErr={setSyncErr}
-          cat_id={cat_id}
-          discountModal={discountModal}
-          setDiscountModal={setDiscountModal}
-          setPaymentType={setPaymentType}
-          ncModal={ncModal}
-          setNcModal={setNcModal}
-          isMultiPayment={isMultiPayment}
-          setIsMultiPayment={setIsMultiPayment}
-          setNormalCartValues={setNormalCartValues}
-          normalCartValues={normalCartValues}
-        />
-      ) : (
-        <PortraitDashboard
-          onSearch={onSearch}
-          onSync={onSync}
-          handleAddToCart={handleAddToCart}
-          handleQty={handleQty}
-          getItemTotal={getItemTotal}
-          getItemQty={getItemQty}
-          getCartTotal={getCartTotal}
-          openNcModal={openNcModal}
-          openMulti={openMulti}
-          onPaymentSelect={onPaymentSelect}
-          enableSante={enableSante}
-          cartRefresh={cartRefresh}
-          getItemQtyWithCarryBag={getItemQtyWithCarryBag}
-          itemsForDiscount={itemsForDiscount}
-          newPrintGenerate={newPrintGenerate}
-          onDayDone={onDayDone}
-          getProductByCat={getProductByCat}
-          onNcDone={onNcDone}
-          onAccept={onAccept}
-          onCounterBillGenerate={onCounterBillGenerate}
-          isLoading={isLoading}
-          isSante={isSante}
-          numColumns={numColumns}
-          products={products}
-          cartList={cartList}
-          paymentType={paymentType}
-          categories={categories}
-          custInfo={custInfo}
-          setCustInfo={setCustInfo}
-          setNoSyncData={setNoSyncData}
-          noSyncdata={noSyncdata}
-          syncErr={syncErr}
-          setSyncErr={setSyncErr}
-          cat_id={cat_id}
-          discountModal={discountModal}
-          setDiscountModal={setDiscountModal}
-          setPaymentType={setPaymentType}
-          ncModal={ncModal}
-          setNcModal={setNcModal}
-          isMultiPayment={isMultiPayment}
-          setIsMultiPayment={setIsMultiPayment}
-          setNormalCartValues={setNormalCartValues}
-          normalCartValues={normalCartValues}
-        />
-      )}
+      <PortraitDashboard
+        onSearch={onSearch}
+        onSync={onSync}
+        getItemTotal={getItemTotal}
+        getItemQty={getItemQty}
+        getCartTotal={getCartTotal}
+        openNcModal={openNcModal}
+        openMulti={openMulti}
+        onPaymentSelect={onPaymentSelect}
+        enableSante={enableSante}
+        cartRefresh={cartRefresh}
+        getItemQtyWithCarryBag={getItemQtyWithCarryBag}
+        itemsForDiscount={itemsForDiscount}
+        newPrintGenerate={newPrintGenerate}
+        onDayDone={onDayDone}
+        getProductByCat={getProductByCat}
+        onNcDone={onNcDone}
+        onAccept={onAccept}
+        onCounterBillGenerate={onCounterBillGenerate}
+        isLoading={isLoading}
+        isSante={isSante}
+        numColumns={numColumns}
+        products={products}
+        paymentType={paymentType}
+        categories={categories}
+        custInfo={custInfo}
+        setCustInfo={setCustInfo}
+        setNoSyncData={setNoSyncData}
+        noSyncdata={noSyncdata}
+        syncErr={syncErr}
+        setSyncErr={setSyncErr}
+        cat_id={cat_id}
+        discountModal={discountModal}
+        setDiscountModal={setDiscountModal}
+        setPaymentType={setPaymentType}
+        ncModal={ncModal}
+        setNcModal={setNcModal}
+        isMultiPayment={isMultiPayment}
+        setIsMultiPayment={setIsMultiPayment}
+        setNormalCartValues={setNormalCartValues}
+        normalCartValues={normalCartValues}
+        cartMap={cartMap}
+      />
     </SafeAreaView>
   );
 };

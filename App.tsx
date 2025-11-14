@@ -48,9 +48,11 @@ import RNFS from 'react-native-fs';
 import {onSync, syncCounterBill} from './src/Utils/synch';
 import SyncModal from './src/Modals/SyncModal';
 import useStore from './src/Redux/Store';
+import {initDBQueue} from './src/Utils/queue';
 
 const {NGXBillingModule} = NativeModules;
 const {IminWhitelist} = NativeModules;
+const {IminiBillingModule} = NativeModules;
 
 // creating stack navigator
 const Stack = createStackNavigator();
@@ -97,6 +99,14 @@ function App(): JSX.Element {
     };
   }, []);
 
+  // useEffect(() => {
+  //   initDBQueue();
+  // }, []);
+
+  // useEffect(() => {
+  //   IminiBillingModule.initPrewarm();
+  // }, []);
+
   const exportDatabase = async () => {
     const dbPath = '/data/data/com.gsbilling/databases/pos.db';
     const destPath = `${RNFS.DownloadDirectoryPath}/pos_exported.db`;
@@ -133,6 +143,7 @@ function App(): JSX.Element {
               removeSession('loginData');
               AsyncStorage.removeItem('app-store');
               AsyncStorage.removeItem('initialDataLoaded');
+              AsyncStorage.removeItem('DB_INSERT_QUEUE');
               // for (const table of tableArray) {
               //   truncateData(table.tableName);
               // }
@@ -154,9 +165,10 @@ function App(): JSX.Element {
         removeSession('loginData');
         await AsyncStorage.removeItem('app-store');
         await AsyncStorage.removeItem('initialDataLoaded');
-        for (const table of tableArray) {
-          await truncateData(table.tableName);
-        }
+        await AsyncStorage.removeItem('DB_INSERT_QUEUE');
+        // for (const table of tableArray) {
+        //   await truncateData(table.tableName);
+        // }
         navigation.reset({
           index: 0,
           routes: [{name: 'Login' as never}],
@@ -251,7 +263,7 @@ function App(): JSX.Element {
           </View>
           <View style={styles.versionContainer}>
             <TouchableWithoutFeedback onPress={exportDatabase}>
-              <Text style={styles.versionText}>Version 1.4</Text>
+              <Text style={styles.versionText}>Version 1.5</Text>
             </TouchableWithoutFeedback>
           </View>
         </View>

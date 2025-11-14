@@ -28,13 +28,16 @@ const PortraitHeader = ({
   onSync,
   isPortrait,
   setOpenCart,
-  cartList,
 }: any) => {
   const {user, saveUserData} = useStore();
   const [isMobile, setIsMobile] = useState(getDeviceType() === 'Mobile');
   const [currentDate, setCurrentDate] = useState('');
   const [currentTime, setCurrentTime] = useState('');
   const [searchQuery, setSearchQuery] = React.useState('');
+
+  const cartMap = useStore(s => s.cartMap);
+
+  const cartList = Object.values(cartMap);
 
   const onChangeSearch = (query: any) => {
     setSearchQuery(query);

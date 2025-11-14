@@ -32,31 +32,11 @@ import {fonts} from '../constants/constants';
 
 const {height: SCREEN_HEIGHT, width: SCREEN_WIDTH} = Dimensions.get('window');
 export default function CartModal(props: any) {
-  const containerStyle: any = {
-    backgroundColor: '#FFFFFF',
-    width: '95%',
-    alignSelf: 'center',
-    height: '85%',
-    borderRadius: 16,
-    elevation: 8,
-    shadowColor: '#000',
-    shadowOffset: {width: 0, height: 4},
-    shadowOpacity: 0.15,
-    shadowRadius: 8,
-  };
+  const {paymentCreds} = useStore();
 
-  const {
-    discountType,
-    mastersCreationData,
-    setSelectedDiscount,
-    selectedDiscount,
-    setDiscountDetails,
-    discountDetails,
-    setIsDiscountApplied,
-    isDiscountApplied,
-    user,
-    paymentCreds,
-  } = useStore();
+  const cartMap = useStore(s => s.cartMap);
+
+  const cartList = Object.values(cartMap);
 
   const UPIcontainerStyle: any = {
     backgroundColor: '#FFFFFF',
@@ -358,7 +338,7 @@ export default function CartModal(props: any) {
   };
 
   const closeCartHandler = () => {
-    if (props.cartList.length === 0) {
+    if (cartList.length === 0) {
       props.setPaymentType({});
       props.setSelectedDiscount(0);
       props.setMultipayment({
@@ -391,7 +371,7 @@ export default function CartModal(props: any) {
                 props.appSettings.length > 0 &&
                 props.isSettingEnabled('DISCOUNT_BUTTON', props.appSettings) ? (
                   <TouchableOpacity
-                    disabled={props.cartList.length == 0}
+                    disabled={cartList.length == 0}
                     style={[
                       styles.compactActionButton,
                       props.discountModal && styles.compactActionButtonActive,
@@ -416,7 +396,7 @@ export default function CartModal(props: any) {
                 ) : null}
 
                 <Pressable
-                  disabled={props.cartList.length == 0}
+                  disabled={cartList.length == 0}
                   style={styles.compactActionButton}
                   onPress={() => props.cartRefresh()}>
                   <MaterialCommunityIcons
@@ -428,43 +408,19 @@ export default function CartModal(props: any) {
                 </Pressable>
               </View>
               <View style={styles.cartWrapper}>
-                {props.isSante ? (
-                  <SanteCart
-                    cartList={props.cartList}
-                    handleQty={props.handleQty}
-                    getItemTotal={props.getItemTotal}
-                    getItemQty={props.getItemQty}
-                    getCartTotal={props.getCartTotal}
-                    openNcModal={props.openNcModal}
-                    openMulti={props.openMulti}
-                    onPaymentSelect={props.onPaymentSelect}
-                    paymentType={props.paymentType}
-                    paymentList={props.paymentList}
-                    setDiscountedItems={props.setDiscountedItems}
-                    discountedItems={props.discountedItems}
-                    selectedDiscount={props.selectedDiscount}
-                    santeDiscountRatio={props.santeDiscountRatio}
-                  />
-                ) : (
-                  <NormalCart
-                    cartList={props.cartList}
-                    handleQty={props.handleQty}
-                    openNcModal={props.openNcModal}
-                    openMulti={props.openMulti}
-                    paymentList={props.paymentList}
-                    onPaymentSelect={props.onPaymentSelect}
-                    paymentType={props.paymentType}
-                    setNormalCartValues={props.setNormalCartValues}
-                    normalCartValues={props.normalCartValues}
-                  />
-                )}
+                <NormalCart
+                  paymentList={props.paymentList}
+                  onPaymentSelect={props.onPaymentSelect}
+                  paymentType={props.paymentType}
+                  normalCartValues={props.normalCartValues}
+                />
               </View>
               <View style={styles.footerSection}>
                 <Pressable
                   disabled={
                     isPrintingRef.current ||
                     isPrinting ||
-                    props.cartList.length == 0 ||
+                    cartList.length == 0 ||
                     !('setting_name' in props.paymentType) ||
                     (props.isSante
                       ? props.getItemQtyWithCarryBag % props.itemsForDiscount !=
@@ -472,14 +428,14 @@ export default function CartModal(props: any) {
                       : false)
                   }
                   onPress={() =>
-                    props.cartList &&
-                    props.cartList.length > 0 &&
+                    cartList &&
+                    cartList.length > 0 &&
                     'setting_name' in props.paymentType &&
                     props.isSante
                       ? // ? onGenerate()
                         printHandler()
-                      : props.cartList &&
-                        props.cartList.length > 0 &&
+                      : cartList &&
+                        cartList.length > 0 &&
                         'setting_name' in props.paymentType &&
                         !props.isSante
                       ? generateQRCode(
@@ -493,7 +449,7 @@ export default function CartModal(props: any) {
                     styles.printButton,
                     (isPrintingRef.current ||
                       isPrinting ||
-                      props.cartList.length == 0 ||
+                      cartList.length == 0 ||
                       !('setting_name' in props.paymentType) ||
                       (props.isSante
                         ? props.getItemQtyWithCarryBag %

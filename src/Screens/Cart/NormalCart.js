@@ -19,26 +19,16 @@ import useStore from '../../Redux/Store';
 import {fonts} from '../../constants/constants';
 
 export default function NormalCart({
-  cartList,
-  openNcModal,
-  handleQty,
-  openMulti,
   paymentList,
   onPaymentSelect,
   paymentType,
-  setNormalCartValues,
   normalCartValues,
 }) {
-  const {
-    discountType,
-    mastersCreationData,
-    setSelectedDiscount,
-    selectedDiscount,
-    setDiscountDetails,
-    discountDetails,
-    setIsDiscountApplied,
-    isDiscountApplied,
-  } = useStore();
+  const {handleQty} = useStore();
+
+  const cartMap = useStore(s => s.cartMap);
+
+  const cartList = Object.values(cartMap);
 
   const [isMobile, setIsMobile] = useState(false);
   const [isBulk, setIsBulk] = useState(false);
@@ -61,31 +51,7 @@ export default function NormalCart({
     }
   }, []);
 
-  // useEffect(() => {
-  //   let defaultValues;
-
-  //   if (discountType === "DEFAULT_DISCOUNT" && isDiscountApplied) {
-  //     defaultValues = calculateCartValues(
-  //       cartList,
-  //       discountType,
-  //       0,
-  //       isDiscountApplied
-  //     );
-  //   } else {
-  //     defaultValues = calculateCartValues(
-  //       cartList,
-  //       discountType,
-  //       selectedDiscount,
-  //       isDiscountApplied
-  //     );
-  //   }
-  //   setCartValues(defaultValues);
-  //   setNormalCartValues(defaultValues);
-  //   console.log(defaultValues, "defaultValues");
-  // }, [cartList, isDiscountApplied, discountType, selectedDiscount]);
-
   const CartItem = ({data}) => {
-    // console.log('Rendering CartItem with data:', data);
     return (
       <View style={normalCartStyles.cartItemCard}>
         {/* Clean Single Row Layout */}
@@ -102,11 +68,11 @@ export default function NormalCart({
 
           {/* Quantity Controls Section */}
           <View style={normalCartStyles.qtySection}>
-            <TouchableOpacity
+            <Pressable
               style={normalCartStyles.qtyButton}
               onPress={() => handleQty('remove', data)}>
               <MaterialCommunityIcons name="minus" size={14} color="#007AFF" />
-            </TouchableOpacity>
+            </Pressable>
 
             <TextInput
               style={normalCartStyles.qtyInput}
@@ -119,11 +85,11 @@ export default function NormalCart({
               textAlign="center"
             />
 
-            <TouchableOpacity
+            <Pressable
               style={normalCartStyles.qtyButton}
               onPress={() => handleQty('add', data)}>
               <MaterialCommunityIcons name="plus" size={14} color="#007AFF" />
-            </TouchableOpacity>
+            </Pressable>
           </View>
 
           {/* Total and Delete Section */}
@@ -134,7 +100,7 @@ export default function NormalCart({
                 (Number(data?.basic_rate) || 0) * (Number(data?.qty) || 0)
               ).toFixed(2)}
             </Text>
-            <TouchableOpacity
+            <Pressable
               style={normalCartStyles.deleteButton}
               onPress={() => handleQty('delete', data)}>
               <MaterialCommunityIcons
@@ -142,34 +108,11 @@ export default function NormalCart({
                 size={16}
                 color="#FF3B30"
               />
-            </TouchableOpacity>
+            </Pressable>
           </View>
         </View>
       </View>
     );
-  };
-
-  useEffect(() => {
-    findLowestPricedItem();
-  }, [cartList]);
-
-  const findLowestPricedItem = () => {
-    const data = [...cartList].sort((a, b) => a.price - b.price);
-    const cartCount = cartList.length;
-    const freeItemCount = Math.floor(cartCount / 3);
-  };
-
-  const onSelectPayment = item => {
-    onPaymentSelect(item);
-    switch (item.setting_name) {
-      case 'NC':
-        openNcModal();
-        break;
-      case 'MULTI':
-        openMulti();
-        break;
-      default:
-    }
   };
 
   const onQtyEnter = (count, data) => {
@@ -180,12 +123,6 @@ export default function NormalCart({
     setIsBulk(false);
     setItem({});
   };
-  const addToCart = item => {
-    setCart([...cart, item]);
-  };
-  // console.log('paymentList', paymentList.length);
-  // console.log('cartList in NormalCart:', cartList);
-  // console.log('cartList length:', cartList?.length);
 
   return (
     <View style={normalCartStyles.container}>

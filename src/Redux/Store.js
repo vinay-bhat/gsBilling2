@@ -41,6 +41,9 @@ const useStore = create(
       isDiscountApplied: false,
       paymentCreds: [],
       dayCLoseButton: false,
+
+      cartMap: {},
+
       // Functions
       saveUserData: data => set({user: data}),
       saveCategories: categories => set({productCategories: categories}),
@@ -68,6 +71,68 @@ const useStore = create(
       setPaymentCreds: data => set({paymentCreds: data}),
       setDayCLoseButton: data => set({dayCLoseButton: data}),
       // You can define more states and actions here...
+
+      addToCart: item => {
+        set(state => {
+          const existing = state.cartMap[item.pr_id];
+          return {
+            cartMap: {
+              ...state.cartMap,
+              [item.pr_id]: {
+                ...item,
+                qty: existing ? existing.qty + 1 : 1,
+              },
+            },
+          };
+        });
+      },
+
+      handleQty: (type, item, count) => {
+        const id = item.pr_id;
+
+        set(state => {
+          const prev = state.cartMap;
+          const existing = prev[id];
+
+          if (!existing) return {cartMap: prev};
+
+          let newQty = existing.qty;
+
+          if (type === 'delete') {
+            const updated = {...prev};
+            delete updated[id];
+            return {cartMap: updated};
+          }
+
+          if (type === 'bulk') {
+            if (count == null || count <= 0) newQty = 1;
+            else if (count < 99) newQty = count;
+          } else if (type === 'remove') {
+            newQty = Math.max(existing.qty - 1, 0);
+          } else if (type === 'add') {
+            newQty = existing.qty + 1;
+          }
+
+          if (newQty === 0) {
+            const updated = {...prev};
+            delete updated[id];
+            return {cartMap: updated};
+          }
+
+          return {
+            cartMap: {
+              ...prev,
+              [id]: {...existing, qty: newQty},
+            },
+          };
+        });
+      },
+
+      clearCart: () => {
+        set({cartMap: {}});
+      },
+      // computed list
+      getCartList: () => Object.values(get().cartMap),
     }),
     {
       name: 'app-billing', // AsyncStorage key
