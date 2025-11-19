@@ -43,6 +43,7 @@ const Dashboard = () => {
   const [categories, setCategories] = useState([]);
 
   const [isLoading, setIsLoading] = useState(true);
+  const [isPrinting, setIsPrinting] = useState(false);
   const [isMultiPayment, setIsMultiPayment] = useState(false);
   const [custInfo, setCustInfo] = useState(false);
   const [numColumns, setNumColumns] = useState(2);
@@ -1192,7 +1193,7 @@ const Dashboard = () => {
   // };
 
   const onCounterBillGenerate = async (custInfo: any) => {
-    setIsLoading(true);
+    setIsPrinting(true);
 
     /** ✅ 1️⃣  Collect tax flag */
     let showTax = false;
@@ -1320,7 +1321,7 @@ const Dashboard = () => {
     );
 
     /** ✅ 8️⃣ Reset UI */
-    setIsLoading(false);
+    setIsPrinting(false);
     setCustInfo(false);
     clearCart();
     setPaymentType({});
@@ -1583,6 +1584,7 @@ const Dashboard = () => {
         setNormalCartValues={setNormalCartValues}
         normalCartValues={normalCartValues}
         cartMap={cartMap}
+        isPrinting={isPrinting}
       />
     </SafeAreaView>
   );

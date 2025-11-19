@@ -69,7 +69,7 @@ export default function CartModal(props: any) {
   const [, forceUpdate] = useState({});
   const lastClickTime = useRef(0);
   const lockTimeoutRef = useRef<any>(null);
-  const DEBOUNCE_DELAY = 1000; // 1 second debounce
+  const DEBOUNCE_DELAY = 2000; // 1 second debounce
   // const [cartValues, setCartValues] = useState<any>({
   //   OriginalTotal: 0,
   //   CartTotalBasic: 0,
@@ -143,22 +143,22 @@ export default function CartModal(props: any) {
       return;
     }
 
-    // Clear any existing timeout
-    if (lockTimeoutRef.current) {
-      clearTimeout(lockTimeoutRef.current);
-    }
+    // // Clear any existing timeout
+    // if (lockTimeoutRef.current) {
+    //   clearTimeout(lockTimeoutRef.current);
+    // }
 
-    lastClickTime.current = now;
-    isPrintingRef.current = true;
-    setIsPrinting(true);
-    forceUpdate({});
+    // lastClickTime.current = now;
+    // isPrintingRef.current = true;
+    // setIsPrinting(true);
+    // forceUpdate({});
 
-    // Set a timeout lock as additional protection
-    lockTimeoutRef.current = setTimeout(() => {
-      isPrintingRef.current = false;
-      setIsPrinting(false);
-      forceUpdate({});
-    }, DEBOUNCE_DELAY);
+    // // Set a timeout lock as additional protection
+    // lockTimeoutRef.current = setTimeout(() => {
+    //   isPrintingRef.current = false;
+    //   setIsPrinting(false);
+    //   forceUpdate({});
+    // }, DEBOUNCE_DELAY);
 
     handler();
   };

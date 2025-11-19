@@ -2,7 +2,6 @@ import {
   Text,
   StyleSheet,
   View,
-  Image,
   TouchableOpacity,
   NativeModules,
   Pressable,
@@ -15,21 +14,13 @@ import MaterialCommunityIcons from 'react-native-vector-icons/MaterialCommunityI
 import {Searchbar} from 'react-native-paper';
 import {removeSession} from '../Utils/AsyncStorageFunctions';
 //@ts-ignore
-import Icon from 'react-native-vector-icons/FontAwesome';
 import {tableArray} from '../Utils/sqlite/SqlliteTable';
 import {truncateData} from '../Utils/sqlite/SqliteDelete';
 import {getDeviceType} from '../Utils/Common';
 import {fonts} from '../constants/constants';
 const {BillingModule} = NativeModules;
 
-const PortraitHeader = ({
-  onSearch,
-  navigation,
-  onSync,
-  isPortrait,
-  setOpenCart,
-}: any) => {
-  const {user, saveUserData} = useStore();
+const PortraitHeader = ({onSearch, navigation, setOpenCart}: any) => {
   const [isMobile, setIsMobile] = useState(getDeviceType() === 'Mobile');
   const [currentDate, setCurrentDate] = useState('');
   const [currentTime, setCurrentTime] = useState('');

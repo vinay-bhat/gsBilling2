@@ -8,7 +8,7 @@ import {
   ScrollView,
   Pressable,
 } from 'react-native';
-import React, {useEffect, useState} from 'react';
+import React, {useEffect, useState, useMemo} from 'react';
 import {dashboardStyles as styles} from '../DashboardStyle';
 import Icon from 'react-native-vector-icons/FontAwesome';
 import MaterialCommunityIcons from 'react-native-vector-icons/MaterialCommunityIcons';
@@ -51,58 +51,58 @@ export default function NormalCart({
     }
   }, []);
 
-  const CartItem = ({data}) => {
+  const CartItem = React.memo(({id}) => {
+    const item = useStore(s => s.cartMap[id]);
+    const handleQty = useStore(s => s.handleQty);
+
+    if (!item) return null;
+
+    const total = useMemo(() => {
+      return (Number(item.basic_rate) * Number(item.qty)).toFixed(2);
+    }, [item.basic_rate, item.qty]);
+
     return (
       <View style={normalCartStyles.cartItemCard}>
-        {/* Clean Single Row Layout */}
         <View style={normalCartStyles.itemRow}>
-          {/* Product Info Section */}
+          {/* Product Section */}
           <View style={normalCartStyles.productSection}>
             <Text style={normalCartStyles.itemName} numberOfLines={2}>
-              {data?.product_name || 'Unknown Product'}
+              {item.product_name}
             </Text>
-            <Text style={normalCartStyles.itemPrice}>
-              ₹{data?.basic_rate || '0.00'}
-            </Text>
+            <Text style={normalCartStyles.itemPrice}>₹{item.basic_rate}</Text>
           </View>
 
-          {/* Quantity Controls Section */}
+          {/* Qty Section */}
           <View style={normalCartStyles.qtySection}>
             <Pressable
               style={normalCartStyles.qtyButton}
-              onPress={() => handleQty('remove', data)}>
+              onPress={() => handleQty('remove', item)}>
               <MaterialCommunityIcons name="minus" size={14} color="#007AFF" />
             </Pressable>
 
             <TextInput
               style={normalCartStyles.qtyInput}
-              value={data?.qty?.toString() || '0'}
+              value={String(item.qty)}
               onPressIn={() => {
                 setIsBulk(true);
-                setItem(data);
+                setItem(item);
               }}
-              keyboardType="numeric"
-              textAlign="center"
             />
 
             <Pressable
               style={normalCartStyles.qtyButton}
-              onPress={() => handleQty('add', data)}>
+              onPress={() => handleQty('add', item)}>
               <MaterialCommunityIcons name="plus" size={14} color="#007AFF" />
             </Pressable>
           </View>
 
-          {/* Total and Delete Section */}
+          {/* Total */}
           <View style={normalCartStyles.totalSection}>
-            <Text style={normalCartStyles.itemTotal}>
-              ₹
-              {(
-                (Number(data?.basic_rate) || 0) * (Number(data?.qty) || 0)
-              ).toFixed(2)}
-            </Text>
+            <Text style={normalCartStyles.itemTotal}>₹{total}</Text>
+
             <Pressable
               style={normalCartStyles.deleteButton}
-              onPress={() => handleQty('delete', data)}>
+              onPress={() => handleQty('delete', item)}>
               <MaterialCommunityIcons
                 name="delete-outline"
                 size={16}
@@ -113,7 +113,7 @@ export default function NormalCart({
         </View>
       </View>
     );
-  };
+  });
 
   const onQtyEnter = (count, data) => {
     if (data != undefined) {
@@ -139,7 +139,7 @@ export default function NormalCart({
           keyExtractor={(item, index) =>
             item?.pr_id?.toString() || item?.id?.toString() || index.toString()
           }
-          renderItem={({item}) => <CartItem data={item} />}
+          renderItem={({item}) => <CartItem id={item.pr_id} />}
           ListEmptyComponent={() => (
             <View style={normalCartStyles.emptyCartContainer}>
               <Text style={normalCartStyles.emptyCartText}>
@@ -308,11 +308,11 @@ const normalCartStyles = StyleSheet.create({
     borderRadius: 6,
     marginVertical: 2,
     marginHorizontal: 8,
-    elevation: 1,
-    shadowColor: '#000',
-    shadowOffset: {width: 0, height: 1},
-    shadowOpacity: 0.05,
-    shadowRadius: 1,
+    // elevation: 1,
+    // shadowColor: '#000',
+    // shadowOffset: {width: 0, height: 1},
+    // shadowOpacity: 0.05,
+    // shadowRadius: 1,
     borderWidth: 1,
     borderColor: '#F0F0F0',
     padding: 6,

@@ -84,8 +84,6 @@ const Portrait = (props: any) => {
             <PortraitHeader
               onSearch={(string: any) => props.onSearch(string)}
               navigation={navigation}
-              onSync={props.onSync}
-              isPortrait={true}
               setOpenCart={setOpenCart}
             />
           ),
@@ -103,9 +101,9 @@ const Portrait = (props: any) => {
       updateNavigationOptions();
 
       // Also set up a listener for when the component is fully mounted
-      const timeout = setTimeout(updateNavigationOptions, 0);
+      // const timeout = setTimeout(updateNavigationOptions, 0);
 
-      return () => clearTimeout(timeout);
+      // return () => clearTimeout(timeout);
     }, [navigation, props.onSearch, props.onSync]),
   );
 
@@ -145,10 +143,12 @@ const Portrait = (props: any) => {
           gstNumber: '',
         };
         props.onCounterBillGenerate(customerData);
-        setTimeout(() => {
-          setOpenCart(false);
-          props.setCustInfo(false);
-        }, 3000);
+        setOpenCart(false);
+        props.setCustInfo(false);
+        // setTimeout(() => {
+        //   setOpenCart(false);
+        //   props.setCustInfo(false);
+        // }, 1000);
       } else if (access === '1' || access === 1) {
         setDropdown(false);
         props.setCustInfo(data);
@@ -223,130 +223,131 @@ const Portrait = (props: any) => {
 
   return (
     <SafeAreaView style={portraitStyles.container}>
-      {props.isLoading ? (
+      {props.isPrinting ? (
         <View style={portraitStyles.loadingContainer}>
-          <MaterialCommunityIcons name="loading" size={40} color="#007AFF" />
-          <Text style={portraitStyles.loadingText}>Loading products...</Text>
+          <MaterialCommunityIcons name="printer" size={40} color="#007AFF" />
+          <Text style={portraitStyles.loadingText}>Printing...</Text>
         </View>
-      ) : null}
-
-      <View style={portraitStyles.content}>
-        {appSettings &&
-        appSettings.length > 0 &&
-        isSettingEnabled('SANTHE_MODULE_BUTTON', appSettings) ? (
-          <View style={portraitStyles.headerSection}>
-            <View style={portraitStyles.santeButtonContainer}>
-              <TouchableOpacity
-                style={[
-                  portraitStyles.santeButton,
-                  props.isSante && portraitStyles.santeButtonActive,
-                ]}
-                onPress={() => props.enableSante(props.isSante)}>
-                <MaterialCommunityIcons
-                  name="shopping"
-                  size={20}
-                  color={props.isSante ? '#FFFFFF' : '#007AFF'}
-                />
-                <Text
+      ) : (
+        <View style={portraitStyles.content}>
+          {appSettings &&
+          appSettings.length > 0 &&
+          isSettingEnabled('SANTHE_MODULE_BUTTON', appSettings) ? (
+            <View style={portraitStyles.headerSection}>
+              <View style={portraitStyles.santeButtonContainer}>
+                <TouchableOpacity
                   style={[
-                    portraitStyles.santeButtonText,
-                    props.isSante && portraitStyles.santeButtonTextActive,
-                  ]}>
-                  Sante
-                </Text>
-              </TouchableOpacity>
-            </View>
-          </View>
-        ) : null}
-
-        <View style={portraitStyles.productsContainer}>
-          {props.products && props.products.length > 0 ? (
-            <FlatList
-              data={props.products}
-              renderItem={renderItem}
-              keyExtractor={(item: any) => item.pr_id}
-              numColumns={numColumns}
-              key={numColumns.toString()}
-              contentContainerStyle={portraitStyles.productsList}
-              showsVerticalScrollIndicator={true}
-              columnWrapperStyle={numColumns > 1 ? portraitStyles.row : null}
-            />
-          ) : (
-            <View style={portraitStyles.noDataContainer}>
-              <MaterialCommunityIcons
-                name="package-variant-closed"
-                size={48}
-                color="#9E9E9E"
-              />
-              <Text style={portraitStyles.noDataText}>No products found</Text>
-            </View>
-          )}
-        </View>
-
-        <View style={portraitStyles.categoriesSection}>
-          {!props.isSante && props.categories.length > 1 ? (
-            <ScrollView
-              horizontal={true}
-              showsHorizontalScrollIndicator={false}
-              style={portraitStyles.categoriesScrollView}
-              contentContainerStyle={portraitStyles.categoriesContainer}>
-              <View style={portraitStyles.categoriesWrapper}>
-                {/* First Row */}
-                <View style={portraitStyles.categoryRow}>
-                  {firstRowCategories.map((item: any) => (
-                    <Pressable
-                      key={`row1-${item.pr_cat_code}`}
-                      style={[
-                        portraitStyles.categoryButton,
-                        props.cat_id == item.pr_cat_code &&
-                          portraitStyles.categoryButtonActive,
-                        {width: FIXED_CATEGORY_WIDTH},
-                      ]}
-                      onPress={() => {
-                        props.getProductByCat(item.pr_cat_code);
-                      }}>
-                      <Text
-                        style={[
-                          portraitStyles.categoryButtonText,
-                          props.cat_id == item.pr_cat_code &&
-                            portraitStyles.categoryButtonTextActive,
-                        ]}>
-                        {item.pr_cat_name}
-                      </Text>
-                    </Pressable>
-                  ))}
-                </View>
-
-                {/* Second Row */}
-                <View style={portraitStyles.categoryRow}>
-                  {secondRowCategories.map((item: any) => (
-                    <Pressable
-                      key={`row2-${item.pr_cat_code}`}
-                      style={[
-                        portraitStyles.categoryButton,
-                        props.cat_id == item.pr_cat_code &&
-                          portraitStyles.categoryButtonActive,
-                        {width: FIXED_CATEGORY_WIDTH},
-                      ]}
-                      onPress={() => {
-                        props.getProductByCat(item.pr_cat_code);
-                      }}>
-                      <Text
-                        style={[
-                          portraitStyles.categoryButtonText,
-                          props.cat_id == item.pr_cat_code &&
-                            portraitStyles.categoryButtonTextActive,
-                        ]}>
-                        {item.pr_cat_name}
-                      </Text>
-                    </Pressable>
-                  ))}
-                </View>
+                    portraitStyles.santeButton,
+                    props.isSante && portraitStyles.santeButtonActive,
+                  ]}
+                  onPress={() => props.enableSante(props.isSante)}>
+                  <MaterialCommunityIcons
+                    name="shopping"
+                    size={20}
+                    color={props.isSante ? '#FFFFFF' : '#007AFF'}
+                  />
+                  <Text
+                    style={[
+                      portraitStyles.santeButtonText,
+                      props.isSante && portraitStyles.santeButtonTextActive,
+                    ]}>
+                    Sante
+                  </Text>
+                </TouchableOpacity>
               </View>
-            </ScrollView>
+            </View>
           ) : null}
+
+          <View style={portraitStyles.productsContainer}>
+            {props.products && props.products.length > 0 ? (
+              <FlatList
+                data={props.products}
+                renderItem={renderItem}
+                keyExtractor={(item: any) => item.pr_id}
+                numColumns={numColumns}
+                key={numColumns.toString()}
+                contentContainerStyle={portraitStyles.productsList}
+                showsVerticalScrollIndicator={true}
+                columnWrapperStyle={numColumns > 1 ? portraitStyles.row : null}
+              />
+            ) : (
+              <View style={portraitStyles.noDataContainer}>
+                <MaterialCommunityIcons
+                  name="package-variant-closed"
+                  size={48}
+                  color="#9E9E9E"
+                />
+                <Text style={portraitStyles.noDataText}>No products found</Text>
+              </View>
+            )}
+          </View>
+
+          <View style={portraitStyles.categoriesSection}>
+            {!props.isSante && props.categories.length > 1 ? (
+              <ScrollView
+                horizontal={true}
+                showsHorizontalScrollIndicator={false}
+                style={portraitStyles.categoriesScrollView}
+                contentContainerStyle={portraitStyles.categoriesContainer}>
+                <View style={portraitStyles.categoriesWrapper}>
+                  {/* First Row */}
+                  <View style={portraitStyles.categoryRow}>
+                    {firstRowCategories.map((item: any) => (
+                      <Pressable
+                        key={`row1-${item.pr_cat_code}`}
+                        style={[
+                          portraitStyles.categoryButton,
+                          props.cat_id == item.pr_cat_code &&
+                            portraitStyles.categoryButtonActive,
+                          {width: FIXED_CATEGORY_WIDTH},
+                        ]}
+                        onPress={() => {
+                          props.getProductByCat(item.pr_cat_code);
+                        }}>
+                        <Text
+                          style={[
+                            portraitStyles.categoryButtonText,
+                            props.cat_id == item.pr_cat_code &&
+                              portraitStyles.categoryButtonTextActive,
+                          ]}>
+                          {item.pr_cat_name}
+                        </Text>
+                      </Pressable>
+                    ))}
+                  </View>
+
+                  {/* Second Row */}
+                  <View style={portraitStyles.categoryRow}>
+                    {secondRowCategories.map((item: any) => (
+                      <Pressable
+                        key={`row2-${item.pr_cat_code}`}
+                        style={[
+                          portraitStyles.categoryButton,
+                          props.cat_id == item.pr_cat_code &&
+                            portraitStyles.categoryButtonActive,
+                          {width: FIXED_CATEGORY_WIDTH},
+                        ]}
+                        onPress={() => {
+                          props.getProductByCat(item.pr_cat_code);
+                        }}>
+                        <Text
+                          style={[
+                            portraitStyles.categoryButtonText,
+                            props.cat_id == item.pr_cat_code &&
+                              portraitStyles.categoryButtonTextActive,
+                          ]}>
+                          {item.pr_cat_name}
+                        </Text>
+                      </Pressable>
+                    ))}
+                  </View>
+                </View>
+              </ScrollView>
+            ) : null}
+          </View>
         </View>
-      </View>
+      )}
+
       <CartModal
         visible={openCart}
         onClose={() => setOpenCart(false)}

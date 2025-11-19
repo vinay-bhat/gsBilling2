@@ -263,7 +263,7 @@ function App(): JSX.Element {
           </View>
           <View style={styles.versionContainer}>
             <TouchableWithoutFeedback onPress={exportDatabase}>
-              <Text style={styles.versionText}>Version 1.5</Text>
+              <Text style={styles.versionText}>Version 1.6</Text>
             </TouchableWithoutFeedback>
           </View>
         </View>
