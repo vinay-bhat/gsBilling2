@@ -168,9 +168,9 @@ public class IminiBillingModule extends ReactContextBaseJavaModule {
                         errorCallback, successCallback
                 );
                 // Cut after print
-                try { print.partialCut(); } catch (Throwable t) {
-                    Log.w(TAG, "partialCut failed: " + t.getMessage());
-                }
+                // try { print.partialCut(); } catch (Throwable t) {
+                //     Log.w(TAG, "partialCut failed: " + t.getMessage());
+                // }
                 if (successCallback != null) successCallback.invoke("Printed");
             } catch (Exception e) {
                 Log.e(TAG, "Print failed: " + e.getMessage());

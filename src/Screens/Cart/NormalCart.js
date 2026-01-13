@@ -9,12 +9,8 @@ import {
   Pressable,
 } from 'react-native';
 import React, {useEffect, useState, useMemo} from 'react';
-import {dashboardStyles as styles} from '../DashboardStyle';
-import Icon from 'react-native-vector-icons/FontAwesome';
 import MaterialCommunityIcons from 'react-native-vector-icons/MaterialCommunityIcons';
-import {getDeviceType} from '../../Utils/Common';
 import QuantityModal from '../../Modals/QuantityModal';
-import calculateCartValues from '../../Services/discountHandler';
 import useStore from '../../Redux/Store';
 import {fonts} from '../../constants/constants';
 
@@ -30,26 +26,8 @@ export default function NormalCart({
 
   const cartList = Object.values(cartMap);
 
-  const [isMobile, setIsMobile] = useState(false);
   const [isBulk, setIsBulk] = useState(false);
   const [item, setItem] = useState({});
-  const [cartValues, setCartValues] = useState({
-    OriginalTotal: '0.00',
-    CartTotalBasic: '0.00',
-    TotalDiscountAmount: '0.00',
-    TotalTaxApplied: '0.00',
-    ItemQuantity: 0,
-    CartTotal: '0.00',
-  });
-
-  useEffect(() => {
-    const device = getDeviceType();
-    if (device == 'Mobile') {
-      setIsMobile(true);
-    } else {
-      setIsMobile(false);
-    }
-  }, []);
 
   const CartItem = React.memo(({id}) => {
     const item = useStore(s => s.cartMap[id]);

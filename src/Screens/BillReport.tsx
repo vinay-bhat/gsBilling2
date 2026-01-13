@@ -393,43 +393,56 @@ const BillReport: React.FC = () => {
     </View>
   );
 
-  const renderTableRow = (item: BillData, index: number) => (
-    <View
-      key={item.bill_id}
-      style={[
-        styles.tableRow,
-        {backgroundColor: index % 2 === 0 ? '#FFFFFF' : '#F8F9FA'},
-      ]}>
-      <View style={[styles.dataCell, styles.billNumberCell]}>
-        <Text style={styles.billNumberText}>{item.invoice_no}</Text>
-      </View>
-      <View style={[styles.dataCell, styles.billDateCell]}>
-        <Text style={styles.dataText}>{formatDate(item.invoice_date)}</Text>
-      </View>
-      <View style={[styles.dataCell, styles.amountCell]}>
-        <Text style={styles.amountText}>{formatAmount(item.total_amount)}</Text>
-      </View>
-      <View style={[styles.dataCell, styles.paymentModeCell]}>
-        <View style={styles.paymentModeContainer}>
-          <MaterialCommunityIcons
-            name={getPaymentModeIcon(item.final_mop || item.mop)}
-            size={16}
-            color={getPaymentModeColor(item.final_mop || item.mop)}
-          />
-          <Text style={styles.paymentModeText}>
-            {item.final_mop || item.mop}
+  const renderTableRow = (item: BillData, index: number) => {
+    return (
+      <View
+        key={item.bill_id}
+        style={[
+          styles.tableRow,
+          {backgroundColor: index % 2 === 0 ? '#FFFFFF' : '#F8F9FA'},
+        ]}>
+        <View style={[styles.dataCell, styles.billNumberCell]}>
+          <Text style={styles.billNumberText}>{item.invoice_no}</Text>
+          {item?.counter_items?.map((item: any) => (
+            <Text key={item.item_id} style={styles.productText}>
+              {item.product_name
+                .toLowerCase()
+                .replace(/\b\w/g, (letter: any) => letter.toUpperCase())}{' '}
+              - {item.quantity} x {item.basic_price} = {item.total_price}
+            </Text>
+          ))}
+        </View>
+        <View style={[styles.dataCell, styles.billDateCell]}>
+          <Text style={styles.dataText}>{formatDate(item.invoice_date)}</Text>
+          <Text style={styles.dataText}>{item.invoice_time}</Text>
+        </View>
+        <View style={[styles.dataCell, styles.amountCell]}>
+          <Text style={styles.amountText}>
+            {formatAmount(item.total_amount)}
           </Text>
         </View>
+        <View style={[styles.dataCell, styles.paymentModeCell]}>
+          <View style={styles.paymentModeContainer}>
+            <MaterialCommunityIcons
+              name={getPaymentModeIcon(item.final_mop || item.mop)}
+              size={16}
+              color={getPaymentModeColor(item.final_mop || item.mop)}
+            />
+            <Text style={styles.paymentModeText}>
+              {item.final_mop || item.mop}
+            </Text>
+          </View>
+        </View>
+        <View style={[styles.dataCell, styles.editCell]}>
+          <TouchableOpacity
+            onPress={() => handleEditPayment(item)}
+            style={styles.editButton}>
+            <MaterialCommunityIcons name="pencil" size={16} color="#007AFF" />
+          </TouchableOpacity>
+        </View>
       </View>
-      <View style={[styles.dataCell, styles.editCell]}>
-        <TouchableOpacity
-          onPress={() => handleEditPayment(item)}
-          style={styles.editButton}>
-          <MaterialCommunityIcons name="pencil" size={16} color="#007AFF" />
-        </TouchableOpacity>
-      </View>
-    </View>
-  );
+    );
+  };
 
   if (loading) {
     return (
@@ -630,7 +643,7 @@ const styles = StyleSheet.create({
     flex: 1.2,
   },
   billDateHeader: {
-    flex: 1,
+    flex: 1.6,
   },
   amountHeader: {
     flex: 1,
@@ -658,7 +671,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   billNumberCell: {
-    flex: 1.2,
+    flex: 1.6,
   },
   billDateCell: {
     flex: 1,
@@ -690,6 +703,12 @@ const styles = StyleSheet.create({
     fontFamily: fonts.NunitoSansRegular,
     color: '#333333',
     textAlign: 'center',
+  },
+  productText: {
+    fontSize: 10,
+    fontFamily: fonts.NunitoSansRegular,
+    color: '#333333',
+    textAlign: 'left',
   },
   amountText: {
     fontSize: 12,
