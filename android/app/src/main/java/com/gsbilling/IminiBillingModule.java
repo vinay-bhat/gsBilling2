@@ -153,6 +153,7 @@ public class IminiBillingModule extends ReactContextBaseJavaModule {
             String custMobile,
             String gstNumber,
             Boolean showTax,
+            String deliveryDate,
             Callback errorCallback,
             Callback successCallback
     ) {
@@ -165,6 +166,7 @@ public class IminiBillingModule extends ReactContextBaseJavaModule {
                         totalBasic, grandTotal, taxableData, taxAmount,
                         cgstGroups, custName, custMobile, gstNumber,
                         showTax != null && showTax,
+                        deliveryDate,
                         errorCallback, successCallback
                 );
                 // Cut after print
@@ -229,6 +231,7 @@ public class IminiBillingModule extends ReactContextBaseJavaModule {
         String custMobile,
         String gstNumber,
         boolean showTax,
+        String deliveryDate,
         @Nullable Callback errorCallback,
         @Nullable Callback successCallback
 ) throws Exception {
@@ -347,6 +350,15 @@ public class IminiBillingModule extends ReactContextBaseJavaModule {
     }
 
     print.printText(SEP);
+
+    if (deliveryDate != null && !deliveryDate.isEmpty()) {
+        print.setAlignment(1);
+        print.setTextSize(25);
+        print.setTextStyle(Typeface.BOLD);
+        print.printAndFeedPaper(5);
+        print.printText("Delivery Date: " + deliveryDate + "\n");
+        print.printText(SEP);
+    }
 
     // Grand Total
     print.setAlignment(1);

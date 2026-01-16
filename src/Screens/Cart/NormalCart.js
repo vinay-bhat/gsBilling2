@@ -11,6 +11,7 @@ import {
 import React, {useEffect, useState, useMemo} from 'react';
 import MaterialCommunityIcons from 'react-native-vector-icons/MaterialCommunityIcons';
 import QuantityModal from '../../Modals/QuantityModal';
+import DeliveryDateModal from '../../Modals/DeliveryDateModal';
 import useStore from '../../Redux/Store';
 import {fonts} from '../../constants/constants';
 
@@ -19,6 +20,7 @@ export default function NormalCart({
   onPaymentSelect,
   paymentType,
   normalCartValues,
+  onDeliveryDateChange,
 }) {
   const {handleQty} = useStore();
 
@@ -28,6 +30,8 @@ export default function NormalCart({
 
   const [isBulk, setIsBulk] = useState(false);
   const [item, setItem] = useState({});
+  const [deliveryDate, setDeliveryDate] = useState(null);
+  const [showDatePicker, setShowDatePicker] = useState(false);
 
   const CartItem = React.memo(({id}) => {
     const item = useStore(s => s.cartMap[id]);
@@ -102,6 +106,32 @@ export default function NormalCart({
     setItem({});
   };
 
+  const onDateSelect = date => {
+    if (date) {
+      setDeliveryDate(date);
+      if (onDeliveryDateChange) {
+        onDeliveryDateChange(date);
+      }
+    } else {
+      setDeliveryDate(null);
+      if (onDeliveryDateChange) {
+        onDeliveryDateChange(null);
+      }
+    }
+    setShowDatePicker(false);
+  };
+
+  const formatDate = date => {
+    if (!date) return 'Select Date';
+    const d = new Date(date);
+    return d.toLocaleDateString('en-IN', {
+      weekday: 'short',
+      year: 'numeric',
+      month: 'short',
+      day: 'numeric',
+    });
+  };
+
   return (
     <View style={normalCartStyles.container}>
       <View style={normalCartStyles.headerSection}>
@@ -171,6 +201,49 @@ export default function NormalCart({
           </View>
         </View>
 
+        <View style={normalCartStyles.deliveryDateSection}>
+          <Text style={normalCartStyles.deliveryDateTitle}>Delivery Date</Text>
+          <Pressable
+            style={[
+              normalCartStyles.deliveryDateButton,
+              cartList.length === 0 &&
+                normalCartStyles.deliveryDateButtonDisabled,
+            ]}
+            disabled={cartList.length === 0}
+            onPress={() => setShowDatePicker(true)}>
+            <MaterialCommunityIcons
+              name="calendar"
+              size={18}
+              color={cartList.length === 0 ? '#999999' : '#007AFF'}
+            />
+            <Text
+              style={[
+                normalCartStyles.deliveryDateText,
+                cartList.length === 0 &&
+                  normalCartStyles.deliveryDateTextDisabled,
+              ]}>
+              {deliveryDate ? formatDate(deliveryDate) : 'Select Date'}
+            </Text>
+            {deliveryDate && (
+              <Pressable
+                style={normalCartStyles.clearDateButton}
+                onPress={e => {
+                  e.stopPropagation();
+                  setDeliveryDate(null);
+                  if (onDeliveryDateChange) {
+                    onDeliveryDateChange(null);
+                  }
+                }}>
+                <MaterialCommunityIcons
+                  name="close-circle"
+                  size={18}
+                  color="#FF3B30"
+                />
+              </Pressable>
+            )}
+          </Pressable>
+        </View>
+
         <View style={normalCartStyles.paymentSection}>
           <Text
             style={[
@@ -232,6 +305,12 @@ export default function NormalCart({
           onClose={onQtyEnter}
         />
       ) : null}
+
+      <DeliveryDateModal
+        visible={showDatePicker}
+        selectedDate={deliveryDate}
+        onClose={onDateSelect}
+      />
     </View>
   );
 }
@@ -477,6 +556,50 @@ const normalCartStyles = StyleSheet.create({
     fontSize: 14,
     fontFamily: fonts.NunitoSansBold,
     color: '#007AFF',
+  },
+  deliveryDateSection: {
+    backgroundColor: '#FFFFFF',
+    padding: 6,
+    borderTopWidth: 1,
+    borderTopColor: '#E0E0E0',
+    flexShrink: 0, // Prevent shrinking
+  },
+  deliveryDateTitle: {
+    paddingVertical: 4,
+    fontSize: 14,
+    fontFamily: fonts.NunitoSansBold,
+    color: '#333333',
+    marginBottom: 6,
+  },
+  deliveryDateButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#F0F8FF',
+    borderRadius: 6,
+    paddingVertical: 10,
+    paddingHorizontal: 12,
+    borderWidth: 1,
+    borderColor: '#007AFF',
+    minHeight: 40,
+  },
+  deliveryDateButtonDisabled: {
+    backgroundColor: '#F5F5F5',
+    borderColor: '#E0E0E0',
+  },
+  deliveryDateText: {
+    flex: 1,
+    fontSize: 12,
+    fontFamily: fonts.NunitoSansBold,
+    color: '#007AFF',
+    marginLeft: 8,
+  },
+  deliveryDateTextDisabled: {
+    color: '#999999',
+    fontFamily: fonts.NunitoSansRegular,
+  },
+  clearDateButton: {
+    padding: 4,
+    marginLeft: 8,
   },
   paymentSection: {
     backgroundColor: '#FFFFFF',

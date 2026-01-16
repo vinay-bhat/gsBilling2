@@ -1192,7 +1192,10 @@ const Dashboard = () => {
   //   });
   // };
 
-  const onCounterBillGenerate = async (custInfo: any) => {
+  const onCounterBillGenerate = async (
+    custInfo: any,
+    deliveryDate?: Date | null,
+  ) => {
     setIsPrinting(true);
 
     /** ✅ 1️⃣  Collect tax flag */
@@ -1372,42 +1375,70 @@ const Dashboard = () => {
       });
     }
 
+    const dateConvert = (date: any) => {
+      const dateISO = date.toISOString().split('T')[0];
+      const [year, month, day] = dateISO.split('-');
+      return `${day}-${month}-${year}`;
+    };
+
+    console.log(deliveryDate, 'deliveryDate');
+    // console.log(dateConvert(deliveryDate), 'billData');
+
+    // Flag to ensure DB insert only happens once
+    let dbInserted = false;
+
     /** ✅ 7️⃣ Print Immediately (FAST ✅) */
-    printerDetails.onCounterBillGenerate(
-      outletDetails?.branch_title,
-      outletDetails?.org_name,
-      outletDetails?.gstin_no,
-      outletDetails?.address1,
-      outletDetails?.address2,
-      outletDetails?.cin_no,
-      cartList,
-      outletDetails?.branch,
-      billData.bill_id.toString(),
-      billData.invoice_no,
-      date,
-      time,
-      normalCartValues?.CartTotalBasic,
-      normalCartValues?.CartTotal,
-      normalCartValues?.CartTotalBasic,
-      normalCartValues?.TotalTaxApplied,
-      groups, // groups if needed
-      custInfo?.name,
-      custInfo?.mobile,
-      custInfo?.gstNumber,
-      showTax,
-      (err: any) => {
-        console.log(err, 'error message !!!!!!!!!!!!!!!!');
-      },
-      (msg: any) => {
-        console.log(msg, 'successs message !!!!!!!!!!!!!!!!');
-        /** ✅ 6️⃣ Queue DB work → runs async + retry */
-        queueDBInsert({
-          billData,
-          items: Items,
-          payments,
-        });
-      },
-    );
+    const printBill = () => {
+      printerDetails.onCounterBillGenerate(
+        outletDetails?.branch_title,
+        outletDetails?.org_name,
+        outletDetails?.gstin_no,
+        outletDetails?.address1,
+        outletDetails?.address2,
+        outletDetails?.cin_no,
+        cartList,
+        outletDetails?.branch,
+        billData.bill_id.toString(),
+        billData.invoice_no,
+        date,
+        time,
+        normalCartValues?.CartTotalBasic,
+        normalCartValues?.CartTotal,
+        normalCartValues?.CartTotalBasic,
+        normalCartValues?.TotalTaxApplied,
+        groups, // groups if needed
+        custInfo?.name,
+        custInfo?.mobile,
+        custInfo?.gstNumber,
+        showTax,
+        deliveryDate ? dateConvert(deliveryDate) : null,
+        (err: any) => {
+          console.log(err, 'error message !!!!!!!!!!!!!!!!');
+        },
+        (msg: any) => {
+          console.log(msg, 'successs message !!!!!!!!!!!!!!!!');
+          /** ✅ 6️⃣ Queue DB work → runs async + retry (only once) */
+          if (!dbInserted) {
+            dbInserted = true;
+            queueDBInsert({
+              billData,
+              items: Items,
+              payments,
+            });
+          }
+        },
+      );
+    };
+
+    // Print first time immediately
+    printBill();
+
+    // Print second time after 1 second delay
+    if (deliveryDate) {
+      setTimeout(() => {
+        printBill();
+      }, 1000);
+    }
 
     /** ✅ 8️⃣ Reset UI */
     setIsPrinting(false);
@@ -1674,6 +1705,9 @@ const Dashboard = () => {
         normalCartValues={normalCartValues}
         cartMap={cartMap}
         isPrinting={isPrinting}
+        onDeliveryDateChange={(date: Date | null) => {
+          // Delivery date is handled through the callback chain
+        }}
       />
     </SafeAreaView>
   );

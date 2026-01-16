@@ -57,6 +57,7 @@ const Portrait = (props: any) => {
   const [openCart, setOpenCart] = useState(false);
   const [dropDown, setDropdown] = useState(false);
   const [dropDownData, setDropdownData] = useState([]);
+  const [deliveryDate, setDeliveryDate] = useState<Date | null>(null);
 
   const navigation = useNavigation();
 
@@ -110,13 +111,19 @@ const Portrait = (props: any) => {
   const firstRowCategories: any = [];
   const secondRowCategories: any = [];
 
-  props.categories.forEach((item: any, index: any) => {
-    if (index % 2 === 0) {
-      firstRowCategories.push(item);
-    } else {
-      secondRowCategories.push(item);
-    }
-  });
+  if (props.categories.length <= 3) {
+    // Display all categories in a single row if 4 or fewer
+    firstRowCategories.push(...props.categories);
+  } else {
+    // Split into two rows if more than 4 categories
+    props.categories.forEach((item: any, index: any) => {
+      if (index % 2 === 0) {
+        firstRowCategories.push(item);
+      } else {
+        secondRowCategories.push(item);
+      }
+    });
+  }
 
   const longestRowLength = Math.max(
     firstRowCategories.length,
@@ -142,7 +149,7 @@ const Portrait = (props: any) => {
           mobile: '',
           gstNumber: '',
         };
-        props.onCounterBillGenerate(customerData);
+        props.onCounterBillGenerate(customerData, deliveryDate);
         setOpenCart(false);
         props.setCustInfo(false);
         // setTimeout(() => {
@@ -176,7 +183,7 @@ const Portrait = (props: any) => {
         mobile: '',
         gstNumber: '',
       };
-      props.onCounterBillGenerate(customerData);
+      props.onCounterBillGenerate(customerData, deliveryDate);
       setTimeout(() => {
         setOpenCart(false);
       }, 3000);
@@ -316,31 +323,33 @@ const Portrait = (props: any) => {
                     ))}
                   </View>
 
-                  {/* Second Row */}
-                  <View style={portraitStyles.categoryRow}>
-                    {secondRowCategories.map((item: any) => (
-                      <Pressable
-                        key={`row2-${item.pr_cat_code}`}
-                        style={[
-                          portraitStyles.categoryButton,
-                          props.cat_id == item.pr_cat_code &&
-                            portraitStyles.categoryButtonActive,
-                          {width: FIXED_CATEGORY_WIDTH},
-                        ]}
-                        onPress={() => {
-                          props.getProductByCat(item.pr_cat_code);
-                        }}>
-                        <Text
+                  {/* Second Row - Only show if more than 4 categories */}
+                  {props.categories.length > 3 && (
+                    <View style={portraitStyles.categoryRow}>
+                      {secondRowCategories.map((item: any) => (
+                        <Pressable
+                          key={`row2-${item.pr_cat_code}`}
                           style={[
-                            portraitStyles.categoryButtonText,
+                            portraitStyles.categoryButton,
                             props.cat_id == item.pr_cat_code &&
-                              portraitStyles.categoryButtonTextActive,
-                          ]}>
-                          {item.pr_cat_name}
-                        </Text>
-                      </Pressable>
-                    ))}
-                  </View>
+                              portraitStyles.categoryButtonActive,
+                            {width: FIXED_CATEGORY_WIDTH},
+                          ]}
+                          onPress={() => {
+                            props.getProductByCat(item.pr_cat_code);
+                          }}>
+                          <Text
+                            style={[
+                              portraitStyles.categoryButtonText,
+                              props.cat_id == item.pr_cat_code &&
+                                portraitStyles.categoryButtonTextActive,
+                            ]}>
+                            {item.pr_cat_name}
+                          </Text>
+                        </Pressable>
+                      ))}
+                    </View>
+                  )}
                 </View>
               </ScrollView>
             ) : null}
@@ -382,6 +391,9 @@ const Portrait = (props: any) => {
         cartRefresh={props.cartRefresh}
         setNormalCartValues={props.setNormalCartValues}
         normalCartValues={props.normalCartValues}
+        onDeliveryDateChange={(date: Date | null) => {
+          setDeliveryDate(date);
+        }}
       />
 
       {props.discountModal ? (
@@ -424,7 +436,9 @@ const Portrait = (props: any) => {
         <CustomerInfo
           visible={props.custInfo}
           onClose={() => props.setCustInfo(false)}
-          onGenerate={props.onCounterBillGenerate}
+          onGenerate={(data: any) =>
+            props.onCounterBillGenerate(data, deliveryDate)
+          }
           isPortrait={true}
           onCloseCart={() => setOpenCart(false)}
           dropDown={dropDown}

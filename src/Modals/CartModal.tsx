@@ -59,6 +59,7 @@ export default function CartModal(props: any) {
   const [timeRemaining, setTimeRemaining] = useState(1800);
   const [polling, setPolling] = useState(false);
   const [croppedQR, setCroppedQR] = useState<any>(null);
+  const [deliveryDate, setDeliveryDate] = useState<Date | null>(null);
   const pollingInterval = useRef<any>(null);
   const timerInterval = useRef<any>(null);
   const [paymentStatus, setPaymentStatus] = useState('');
@@ -413,6 +414,12 @@ export default function CartModal(props: any) {
                   onPaymentSelect={props.onPaymentSelect}
                   paymentType={props.paymentType}
                   normalCartValues={props.normalCartValues}
+                  onDeliveryDateChange={(date: Date | null) => {
+                    setDeliveryDate(date);
+                    if (props.onDeliveryDateChange) {
+                      props.onDeliveryDateChange(date);
+                    }
+                  }}
                 />
               </View>
               <View style={styles.footerSection}>
