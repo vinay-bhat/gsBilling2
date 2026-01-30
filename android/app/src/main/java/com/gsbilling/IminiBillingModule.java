@@ -180,6 +180,54 @@ public class IminiBillingModule extends ReactContextBaseJavaModule {
     }
 
     @ReactMethod
+    public void santhePrint(
+            String title,
+            String orgname,
+            String gstino,
+            String address1,
+            String address2,
+            String cin_no,
+            ReadableArray billData,
+            String branchname,
+            String billId,
+            String billNo,
+            String date,
+            String time,
+            Double totalBasic,
+            Double discountBasic,
+            ReadableArray discountData,
+            Double grandTotal,
+            Double taxableData,
+            Double taxAmount,
+            ReadableArray cgstGroups,
+            Boolean showTax,
+            Callback errorCallback,
+            Callback successCallback
+    ) {
+        printExecutor.execute(() -> {
+            try {
+                ensureReadyOrThrow();
+                santhePrintInternal(
+                        title, orgname, gstino, address1, address2, cin_no,
+                        billData, branchname, billId, billNo, date, time,
+                        totalBasic, discountBasic, discountData, grandTotal, taxableData, taxAmount,
+                        cgstGroups,
+                        showTax,
+                        errorCallback, successCallback
+                );
+                // Cut after print
+                // try { print.partialCut(); } catch (Throwable t) {
+                //     Log.w(TAG, "partialCut failed: " + t.getMessage());
+                // }
+                if (successCallback != null) successCallback.invoke("Printed");
+            } catch (Exception e) {
+                Log.e(TAG, "Print failed: " + e.getMessage());
+                if (errorCallback != null) errorCallback.invoke(e.getMessage());
+            }
+        });
+    }
+
+    @ReactMethod
     public void cutPaper(final Callback callback) {
         printExecutor.execute(() -> {
             try {
@@ -363,6 +411,179 @@ public class IminiBillingModule extends ReactContextBaseJavaModule {
     if (custName != null && !custName.isEmpty()) print.printText("Customer Name : " + custName + "\n");
     if (custMobile != null && !custMobile.isEmpty()) print.printText("Customer Ph   : " + custMobile + "\n");
     if (gstNumber != null && !gstNumber.isEmpty()) print.printText("Customer GST  : " + gstNumber + "\n");
+
+    // Footer
+    print.printText(SEP);
+    print.setAlignment(1);
+    print.printText("Computer generated invoice,\n");
+    print.printText("Signature not required\n");
+    print.printText("Thank You\n");
+
+    print.printAndFeedPaper(120);
+}
+
+private void santhePrintInternal(
+            String title,
+            String orgname,
+            String gstino,
+            String address1,
+            String address2,
+            String cin_no,
+            ReadableArray billData,
+            String branchname,
+            String billId,
+            String billNo,
+            String date,
+            String time,
+            Double totalBasic,
+            Double discountBasic,
+            ReadableArray discountData,
+            Double grandTotal,
+            Double taxableData,
+            Double taxAmount,
+            ReadableArray cgstGroups,
+            Boolean showTax,
+        @Nullable Callback errorCallback,
+        @Nullable Callback successCallback
+) throws Exception {
+
+    DecimalFormat money = new DecimalFormat("0.00");
+    String SEP = "--------------------------------------------------------------";
+
+
+    // Header (all in one block for speed)
+    StringBuilder header = new StringBuilder();
+    if (showTax) {
+        header.append("TAX INVOICE\n");
+    }
+    // header.append(title).append("\n");
+    print.setTextSize(30);
+        print.setTextStyle(Typeface.BOLD);
+        print.printText((title != null ? title : "") + "\n");
+
+    if (orgname != null && !orgname.isEmpty()) {
+        header.append(orgname).append("\n");
+    } else {
+        header.append("\n");
+    }
+
+    if (address1 != null) header.append(address1).append("\n");
+    if (address2 != null) header.append(address2).append("\n");
+    if (gstino != null && !gstino.isEmpty()) header.append("GSTIN: ").append(gstino).append("\n");
+    if (cin_no != null && !cin_no.isEmpty() && !"0".equals(cin_no))
+        header.append("CIN: ").append(cin_no).append("\n");
+
+    header.append("\nDate: ").append(date)
+            .append("            Time: ").append(time)
+            .append("\nBill No: ").append(billNo)
+            .append("\n").append(SEP + "\n")
+            .append(String.format("%-18s %-8s %-8s %s\n", "Item Name", "Qty", "Rate", "Amt"))
+            .append(SEP);
+
+    // Print header (center aligns title block, left-align table rows)
+    print.setAlignment(1);
+    print.setTextSize(20);
+    print.setTextStyle(Typeface.BOLD);
+    print.printText(header.toString());
+
+    print.setAlignment(0);
+    print.setTextStyle(Typeface.NORMAL);
+    print.setTextSize(22);
+
+    // Items (buffered for speed)
+    if (billData != null) {
+        for (int i = 0; i < billData.size(); i++) {
+            ReadableMap map = billData.getMap(i);
+            if (map == null) continue;
+
+            // Get data safely
+            String rawName = map.hasKey("product_name") ? map.getString("product_name") : "";
+            String name = toTitleCase(rawName);
+            String hsn = map.hasKey("hsn_code") ? map.getString("hsn_code") : "";
+            double qty = getQuantityAsDouble(map);
+
+            double rate = 0.0;
+            try {
+                String basicRate = map.getString("basic_rate");
+                rate = Double.parseDouble(basicRate);
+            } catch (Throwable ignore) {}
+
+            double amount = qty * rate;
+
+            // Item Name (28, BOLD)
+            print.setTextSize(26);
+            print.setTextStyle(Typeface.BOLD);
+            print.printText(name + "\n");
+
+            // HSN if enabled
+            if (showTax && hsn != null && !hsn.isEmpty()) {
+                print.setTextSize(22);
+                print.setTextStyle(Typeface.NORMAL);
+                print.printText("HSN Code: " + hsn + "\n");
+            }
+
+            // Qty/Rate/Amount line
+            print.setTextSize(22);
+            print.setTextStyle(Typeface.NORMAL);
+            print.printText(String.format(Locale.US,
+                    "\t\t\t\t\t\t\t %.2f        %.2f        %.2f\n",
+                    qty, rate, amount));
+
+            print.printAndFeedPaper(5);
+        }
+    }
+
+    
+
+    if (showTax) {
+        // Totals & Tax Section
+    print.printText(SEP);
+    print.setTextSize(24);
+        print.printText("Tot Basic : " + totalBasic + "\n");
+        print.printText("Discount  : " + discountBasic + "\n");
+        print.printText("Taxable   : " + taxableData + "\n");
+        print.printText("Tax       : " + taxAmount + "\n");
+        print.printText(SEP);
+
+        if (cgstGroups != null) {
+            for (int i = 0; i < cgstGroups.size(); i++) {
+                ReadableMap m = cgstGroups.getMap(i);
+                if (m == null) continue;
+                double amt = 0;
+                String cg = "0";
+                try { amt = m.getDouble("amount"); } catch (Throwable ignore) {}
+                try { cg = m.getString("cgst"); } catch (Throwable ignore) {}
+
+                if (amt > 0) {
+                    print.printText("CGST " + cg + "% : " + money.format(amt) + "\n");
+                    print.printText("SGST " + cg + "% : " + money.format(amt) + "\n");
+                }
+            }
+        }
+    }
+
+    print.printText(SEP);
+
+    for (int i = 0; i < discountData.size(); i++) {
+        ReadableMap map = discountData.getMap(i);
+        String itemName = map.getString("item_name");
+        int freeQty = map.getInt("item_qty");
+        print.setAlignment(0);
+        print.setTextStyle(Typeface.NORMAL);
+        print.printText("" + itemName + "\t" + "\tOffer of\t" + freeQty + "\tQty" + "\n");
+    print.printText(SEP);
+
+      }
+      
+
+    // Grand Total
+    print.setAlignment(1);
+    print.setTextSize(30);
+    print.setTextStyle(Typeface.BOLD);
+    print.printText("Grand Total: " + grandTotal + "\n");
+
+    print.setTextSize(22);
+    print.printText(SEP);
 
     // Footer
     print.printText(SEP);

@@ -10,6 +10,7 @@ import {
   getCurrentDatTime,
   getCurrentFinancialYear,
   getDeviceType,
+  isSettingEnabled,
   transformItem2,
 } from '../Utils/Common';
 import NetInfo from '@react-native-community/netinfo';
@@ -29,6 +30,10 @@ import {getSession} from '../Utils/AsyncStorageFunctions';
 import PortraitDashboard from './PortraitDashboard';
 import calculateCartValues from '../Services/discountHandler';
 import {queueDBInsert} from '../Utils/queue';
+
+// Module-level flags to persist across component remounts
+let printerFetched = false;
+let paymentCredsFetched = false;
 
 const Dashboard = () => {
   // const [cartList, setCartList] = useState<any[]>([]);
@@ -112,6 +117,19 @@ const Dashboard = () => {
   }, []);
 
   useEffect(() => {
+    const isSantheEnabled = isSettingEnabled(
+      'SANTHE_MODULE_BUTTON',
+      appSettings || [],
+    );
+    console.log('isSantheEnabled', isSantheEnabled);
+    if (isSantheEnabled) {
+      setIsSante(true);
+    } else {
+      setIsSante(false);
+    }
+  }, [appSettings]);
+
+  useEffect(() => {
     const deviceType = getDeviceType();
     console.log('deviceType', deviceType);
     // Set numColumns based on screen width
@@ -133,13 +151,20 @@ const Dashboard = () => {
   }, []);
 
   useEffect(() => {
-    Dimensions.addEventListener('change', ({window: {width, height}}) => {
-      if (width < height) {
-        setOrientation('PORTRAIT');
-      } else {
-        setOrientation('LANDSCAPE');
-      }
-    });
+    const subscription = Dimensions.addEventListener(
+      'change',
+      ({window: {width, height}}) => {
+        if (width < height) {
+          setOrientation('PORTRAIT');
+        } else {
+          setOrientation('LANDSCAPE');
+        }
+      },
+    );
+
+    return () => {
+      subscription?.remove();
+    };
   }, []);
 
   useEffect(() => {
@@ -150,7 +175,7 @@ const Dashboard = () => {
     } else {
       setOrientation('LANDSCAPE');
     }
-  });
+  }, []);
 
   useEffect(() => {
     let defaultValues;
@@ -177,7 +202,12 @@ const Dashboard = () => {
   }, [cartList, isDiscountApplied, discountType, selectedDiscount]);
 
   useEffect(() => {
+    if (printerFetched) {
+      return;
+    }
+
     const getPrinter = async () => {
+      printerFetched = true;
       const response = await getPrinterDetails();
 
       switch (response[0]?.name) {
@@ -202,10 +232,17 @@ const Dashboard = () => {
   }, []);
 
   useEffect(() => {
+    if (paymentCredsFetched) {
+      return;
+    }
+
     const getPayment = async () => {
+      paymentCredsFetched = true;
       const response = await getPaymentCredentials();
 
-      setPaymentCreds(response);
+      if (response) {
+        setPaymentCreds(response);
+      }
     };
     getPayment();
   }, []);
@@ -216,14 +253,10 @@ const Dashboard = () => {
         `${user.sales_urls[0].get_payment_credentials}/${user.branch}`,
       );
       console.log('Payment credentials:', response);
-      // setPaymentCredentials(response);
       return response;
     } catch (error) {
-      console.error('Error getting payment credentials:', error);
-      Alert.alert(
-        'Error',
-        'Failed to get payment credentials. Please try again.',
-      );
+      console.log('Error getting payment credentials:', error);
+      return null;
     }
   };
 
@@ -501,12 +534,20 @@ const Dashboard = () => {
 
   const newPrintGenerate = async () => {
     console.log('cleckeddd');
+    setIsPrinting(true);
 
-    setIsLoading(true);
+    /** ✅ 1️⃣ Collect tax flag */
+    let showTax = false;
+    const santheSetting = appSettings.find(
+      (setting: any) => setting.setting_name === 'HSN_DISPLAY_OPTION',
+    );
+    if (santheSetting?.setting_access === '1') showTax = true;
+
+    /** ✅ 2️⃣ Get time + totals */
     const {totalAmt, disAmt, finalWithTax, discount} = getCartTotal2();
     const {date, time} = getCurrentDatTime();
     const pattern = /^Carry Bag/;
-    let reqObj: any = {};
+
     let updatedCartWithoutcarryBag = cartList.filter(
       (item: any) => !pattern.test(item.product_name),
     );
@@ -515,58 +556,48 @@ const Dashboard = () => {
 
     setDicountedItemsId(discountedItemsId);
 
+    /** ✅ 3️⃣ Get last bill_id */
     let {bill_id} = await getLastValues('sante_bills', ['bill_id']);
 
+    console.log('bill_id', bill_id);
+
+    /** Fallback from session */
     if (bill_id === null || bill_id === undefined) {
       const response: any = await getSession('loginData');
       const data = JSON.parse(response);
       bill_id = parseInt(data?.santhe_bill_id);
-
-      reqObj = {
-        bill_id: bill_id + 1,
-        bill_no: `${user.branch}-${bill_id + 1}`,
-        bill_date: date,
-        bill_time: time,
-        total_basic: totalBasic,
-        total_qty: getItemQty(),
-        discount_amount: discount,
-        taxable_amount: totalPrice,
-        tax_amount: 0,
-        cgst_price: 0,
-        sgst_price: 0,
-        grand_total_amount: Math.round(totalPrice),
-        payment_type: paymentType.setting_name,
-        branch_name: user.branch,
-        sync_status: 'pending',
-      };
-    } else {
-      reqObj = {
-        bill_no: `${user.branch}-${bill_id + 1}`,
-        bill_date: date,
-        bill_time: time,
-        total_basic: totalBasic,
-        total_qty: getItemQty(),
-        discount_amount: discount,
-        taxable_amount: totalPrice,
-        tax_amount: 0,
-        cgst_price: 0,
-        sgst_price: 0,
-        grand_total_amount: Math.round(totalPrice),
-        payment_type: paymentType.setting_name,
-        branch_name: user.branch,
-        sync_status: 'pending',
-      };
     }
+
+    const newBillId = parseInt(bill_id) + 1;
+
+    /** ✅ 4️⃣ Build billData */
+    const reqObj: any = {
+      bill_id: newBillId,
+      bill_no: `${user.branch}-${newBillId}`,
+      bill_date: date,
+      bill_time: time,
+      total_basic: totalBasic,
+      total_qty: getItemQty(),
+      discount_amount: discount,
+      taxable_amount: totalPrice,
+      tax_amount: 0,
+      cgst_price: 0,
+      sgst_price: 0,
+      grand_total_amount: Math.round(totalPrice),
+      payment_type: paymentType.setting_name,
+      branch_name: user.branch,
+      sync_status: 'pending',
+    };
 
     console.log(reqObj, 'reqObjreqObj');
 
-    await inserData('sante_bills', reqObj);
-    let sante_discounts = [];
-    let sante_items = [];
-    let itemId;
+    /** ✅ 5️⃣ Build items + discounts (without inserting) */
+    let sante_discounts_for_print: any[] = []; // For print calculations (has extra fields)
+    let sante_discounts_for_db: any[] = []; // For DB insert (only valid columns)
+    let sante_items: any[] = [];
     let catId = 0;
-    // console.log("discountedCart", discountedCart);
-    if (discountedCart.length > 0 && bill_id != null) {
+
+    if (discountedCart.length > 0) {
       console.log(discountedCart, 'discountedCart123');
 
       for (const item of discountedCart) {
@@ -582,7 +613,7 @@ const Dashboard = () => {
           item_discount: '0',
           item_taxable: item.price,
           item_discount_tax_amount: 0,
-          bill_id: bill_id + 1,
+          bill_id: newBillId,
           bill_date: date,
           branch_name: user.branch,
         };
@@ -590,76 +621,48 @@ const Dashboard = () => {
         if (discountedItemsId.includes(item.pr_id)) {
           catId = item.pr_id;
         }
-        await inserData('sante_items', baseData);
         sante_items.push(baseData);
 
         if (item.discounted) {
+          // For print - needs extra fields for calculations
+          const printObj = {
+            item_id: item?.pr_id,
+            item_qty: item.qty,
+            item_name: item.product_name,
+            item_price: item?.price,
+            item_basic: item?.basic_rate,
+            bill_id: newBillId,
+            id: item?.id,
+            branch_name: user.branch,
+          };
+          // For DB - sante_discounts table only has: item_id, item_qty, bill_id, branch_name
+          const dbObj = {
+            item_id: item?.pr_id,
+            item_qty: item.qty,
+            bill_id: newBillId,
+            branch_name: user.branch,
+          };
           if (catId == item.pr_id) {
-            const obj = {
-              item_id: item?.pr_id,
-              item_qty: item.qty,
-              item_name: item.product_name,
-              item_price: item?.price,
-              item_basic: item?.basic_rate,
-              bill_id: bill_id + 1,
-              id: item?.id,
-              branch_name: user.branch,
-            };
             console.log('catId 3', catId);
-            sante_discounts.push(obj);
-            await inserData('sante_discounts', obj);
-          } else {
-            let {item_id} = await getLastValues('sante_items', ['item_id']);
-
-            if (item_id == undefined) {
-              item_id = 0;
-            }
-
-            const obj = {
-              item_id: item?.pr_id,
-              item_qty: item.qty,
-              item_name: item.product_name,
-              item_price: item?.price,
-              item_basic: item?.basic_rate,
-              bill_id: bill_id + 1,
-              id: item?.id,
-              branch_name: user.branch,
-            };
-            sante_discounts.push(obj);
-            await inserData('sante_discounts', obj);
           }
+          sante_discounts_for_print.push(printObj);
+          sante_discounts_for_db.push(dbObj);
         }
       }
     }
-    reqObj.sante_items = sante_items;
-    reqObj.sante_discounts = sante_discounts;
 
     console.log('sante_bills', reqObj);
-    setIsLoading(false);
-    setCustInfo(false);
-    clearCart();
-    setPaymentType({});
-    setSelectedDiscount(0);
-    setMultipayment({
-      multi_paytm: '0.0',
-      multi_card: ' 0.0',
-      multi_cash: ' 0.0',
-      multi_phonepay: ' 0.0',
-    });
-    setDicountedItemsId([]);
-    enableSante(false);
 
+    /** ✅ 6️⃣ Prepare print data */
     var res: any = {};
-    sante_discounts.map(e => {
+    sante_discounts_for_print.map(e => {
       if (!res[e.id]) res[e.id] = Object.assign({}, e); // clone
       else res[e.id].item_qty += e.item_qty;
     });
     let mergedDiscountArray = Object.values(res);
     let removedDiscountArray = cartList.map((cv: any) => {
-      // console.log(cv, "removedisss");
       let quantity = cv.qty;
       mergedDiscountArray.find(function (e: any) {
-        // console.log(e, "inside removee");
         if (e.id == cv.id) {
           console.log('inside iddd');
           quantity = cv.qty - e.item_qty;
@@ -684,6 +687,7 @@ const Dashboard = () => {
       };
     });
 
+    /** ✅ 7️⃣ Print Immediately (FAST ✅) */
     printerDetails.santhePrint(
       outletDetails?.branch_title,
       outletDetails?.org_name,
@@ -693,34 +697,64 @@ const Dashboard = () => {
       outletDetails?.cin_no,
       cartList,
       outletDetails?.branch,
-      bill_id.toString(),
-      `${user.branch}-${bill_id + 1}`,
+      newBillId.toString(),
+      `${user.branch}-${newBillId}`,
       date,
       time,
       sumBasic(cartList),
 
-      isNaN(sumBasicDiscount(sante_discounts))
+      isNaN(sumBasicDiscount(sante_discounts_for_print))
         ? 0
-        : sumBasicDiscount(sante_discounts),
+        : sumBasicDiscount(sante_discounts_for_print),
 
-      sante_discounts,
+      sante_discounts_for_print,
 
-      isNaN(sumTotal(cartList) - sumTotalDiscount(sante_discounts))
+      isNaN(sumTotal(cartList) - sumTotalDiscount(sante_discounts_for_print))
         ? 0
-        : sumTotal(cartList) - sumTotalDiscount(sante_discounts),
+        : sumTotal(cartList) - sumTotalDiscount(sante_discounts_for_print),
 
       sumBasic(removedDiscountArray),
 
       sumTax(removedDiscountArray),
 
       groups,
+      showTax,
       (err: any) => {
         console.log(err, 'error message !!!!!!!!!!!!!!!!');
       },
       (msg: any) => {
         console.log(msg, 'successs message !!!!!!!!!!!!!!!!');
+        /** ✅ 8️⃣ Queue DB work → runs async + retry */
+        queueDBInsert({
+          billData: reqObj,
+          items: sante_items,
+          payments: sante_discounts_for_db,
+          type: 'sante',
+        });
       },
     );
+
+    // queueDBInsert({
+    //   billData: reqObj,
+    //   items: sante_items,
+    //   payments: sante_discounts_for_db,
+    //   type: 'sante',
+    // });
+
+    /** ✅ 9️⃣ Reset UI */
+    setIsPrinting(false);
+    setCustInfo(false);
+    clearCart();
+    setPaymentType({});
+    setSelectedDiscount(0);
+    setMultipayment({
+      multi_paytm: '0.0',
+      multi_card: ' 0.0',
+      multi_cash: ' 0.0',
+      multi_phonepay: ' 0.0',
+    });
+    setDicountedItemsId([]);
+    enableSante(false);
   };
 
   const sumTotal = (arr: any) =>

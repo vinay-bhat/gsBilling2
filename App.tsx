@@ -49,6 +49,7 @@ import {onSync, syncCounterBill} from './src/Utils/synch';
 import SyncModal from './src/Modals/SyncModal';
 import useStore from './src/Redux/Store';
 import {initDBQueue} from './src/Utils/queue';
+import {isSettingEnabled} from './src/Utils/Common';
 
 const {NGXBillingModule} = NativeModules;
 const {IminWhitelist} = NativeModules;
@@ -64,7 +65,7 @@ function App(): JSX.Element {
   const [isLoading, setIsLoading] = useState(false);
   const [syncDone, setSyncDone] = useState(false);
   const user = useStore(state => state.user);
-
+  const appSettings = useStore(state => state.appSettings);
   useEffect(() => {
     creationSqlliteTable();
   }, []);
@@ -263,9 +264,17 @@ function App(): JSX.Element {
           </View>
           <View style={styles.versionContainer}>
             <TouchableWithoutFeedback onPress={exportDatabase}>
-              <Text style={styles.versionText}>Version 1.6</Text>
+              <Text style={styles.versionText}>Version 1.8</Text>
             </TouchableWithoutFeedback>
           </View>
+          {appSettings &&
+          appSettings.length > 0 &&
+          isSettingEnabled('SANTHE_MODULE_BUTTON', appSettings) ? (
+            <View style={styles.santeBadgeContainer}>
+              <MaterialCommunityIcons name="leaf" size={16} color="#2E7D32" />
+              <Text style={styles.santeBadgeText}>Santhe Billing</Text>
+            </View>
+          ) : null}
         </View>
 
         {/* Drawer Items */}
@@ -543,6 +552,32 @@ const styles = StyleSheet.create({
     borderRadius: 3,
     backgroundColor: '#007AFF',
     opacity: 0.3,
+  },
+  santeBadgeContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#E8F5E9',
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    borderRadius: 20,
+    marginTop: 12,
+    borderWidth: 1,
+    borderColor: '#A5D6A7',
+    shadowColor: '#2E7D32',
+    shadowOffset: {
+      width: 0,
+      height: 1,
+    },
+    shadowOpacity: 0.15,
+    shadowRadius: 2,
+    elevation: 2,
+  },
+  santeBadgeText: {
+    fontFamily: fonts.NunitoSansBold,
+    fontSize: 13,
+    color: '#2E7D32',
+    marginLeft: 6,
+    letterSpacing: 0.3,
   },
 });
 

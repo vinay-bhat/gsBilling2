@@ -19,6 +19,9 @@ import {syncCounterBill} from '../Utils/synch';
 import {useIsFocused} from '@react-navigation/native';
 import NCModal from '../Modals/NC';
 import {db} from '../Utils/sqlite/Sqlitecreation';
+import {
+  isSettingEnabled,
+} from '../Utils/Common';
 
 const {width} = Dimensions.get('window');
 
@@ -47,12 +50,14 @@ const BillReport: React.FC = () => {
   const [selectedBill, setSelectedBill] = useState<BillData | null>(null);
   const [selectedPaymentMode, setSelectedPaymentMode] = useState<string>('');
   const [counterBills, setCounterBills] = useState<any[]>([]);
+  const [santeBills, setSantheBills] = useState<any[]>([]);
   const [ncModal, setNcModal] = useState(false);
   const [paymentType, setPaymentType] = useState<any>({});
   const isFocused = useIsFocused();
 
   const {paymentList, ncModalData, setNcModalData} = useStore();
-
+  const appSettings = useStore(state => state.appSettings);
+  const isSantheEnabled = isSettingEnabled('SANTHE_MODULE_BUTTON', appSettings || []);
   const paymentModes = paymentList.map((item: any) => item.setting_name);
 
   const handleEditPayment = (bill: BillData) => {
@@ -315,6 +320,18 @@ const BillReport: React.FC = () => {
 
   useEffect(() => {
     if (isFocused) {
+      
+      async function fetchSantheBills() {
+        const fetchedSantheBills = await syncCounterBill(
+          'sante_bills',
+          'sante_items',
+          'sante_discounts',
+        );
+        setSantheBills(fetchedSantheBills);
+        setBillData(fetchedSantheBills);
+        setLoading(false);        
+      }
+
       async function fetchMyAPI() {
         setLoading(true);
         const counterBills = await syncCounterBill(
@@ -328,7 +345,11 @@ const BillReport: React.FC = () => {
         setLoading(false);
       }
 
-      fetchMyAPI();
+      if (isSantheEnabled) {
+        fetchSantheBills();
+      } else {
+        fetchMyAPI();
+      }
     }
   }, [isFocused]);
 
@@ -387,9 +408,11 @@ const BillReport: React.FC = () => {
       <View style={[styles.headerCell, styles.paymentModeHeader]}>
         <Text style={styles.headerText}>Payment Mode</Text>
       </View>
+      {!isSantheEnabled && (
       <View style={[styles.headerCell, styles.editHeader]}>
         <Text style={styles.headerText}>Edit</Text>
       </View>
+      )}
     </View>
   );
 
@@ -444,6 +467,51 @@ const BillReport: React.FC = () => {
     );
   };
 
+  const renderSantheTableRow = (item: any, index: number) => {
+    return (
+      <View
+        key={item.bill_no}
+        style={[
+          styles.tableRow,
+          {backgroundColor: index % 2 === 0 ? '#FFFFFF' : '#F8F9FA'},
+        ]}>
+        <View style={[styles.dataCell, styles.billNumberCell]}>
+          <Text style={styles.billNumberText}>{item.bill_no}</Text>
+          {item?.counter_items?.map((item: any) => (
+            <Text key={item.item_id} style={styles.productText}>
+              {item.item_name
+                .toLowerCase()
+                .replace(/\b\w/g, (letter: any) => letter.toUpperCase())}{' '}
+              - {item.item_qty} x {item.item_basic} = {item.item_price}
+            </Text>
+          ))}
+        </View>
+        <View style={[styles.dataCell, styles.billDateCell]}>
+          <Text style={styles.dataText}>{formatDate(item.bill_date)}</Text>
+          <Text style={styles.dataText}>{item.bill_time}</Text>
+        </View>
+        <View style={[styles.dataCell, styles.amountCell]}>
+          <Text style={styles.amountText}>
+            {formatAmount(item.grand_total_amount)}
+          </Text>
+        </View>
+        <View style={[styles.dataCell, styles.paymentModeCell]}>
+          <View style={styles.paymentModeContainer}>
+            <MaterialCommunityIcons
+              name={getPaymentModeIcon(item.payment_type || item.mop)}
+              size={16}
+              color={getPaymentModeColor(item.payment_type || item.mop)}
+            />
+            <Text style={styles.paymentModeText}>
+              {item.payment_type || item.mop}
+            </Text>
+          </View>
+        </View>
+       
+      </View>
+    );
+  };
+
   if (loading) {
     return (
       <SafeAreaView style={styles.container}>
@@ -465,6 +533,12 @@ const BillReport: React.FC = () => {
               .sort((a, b) => b.invoice_no.localeCompare(a.invoice_no))
               .slice(0, 10)
               .map((item, index) => renderTableRow(item, index))
+          ) : 
+          santeBills.length > 0 ? (
+            santeBills
+              .sort((a, b) => b.bill_no.localeCompare(a.bill_no))
+              .slice(0, 10)
+              .map((item, index) => renderSantheTableRow(item, index))
           ) : (
             <View style={styles.noDataContainer}>
               <MaterialCommunityIcons

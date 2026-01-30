@@ -16,6 +16,9 @@ import SyncModal from '../Modals/SyncModal';
 import CustomAlert from '../Modals/CustomAlert';
 import {useIsFocused} from '@react-navigation/native';
 import {sendPostRequest} from '../Utils/ApiMethods';
+import {
+  isSettingEnabled,
+} from '../Utils/Common';
 
 const SynchData = (props: any) => {
   const [noInternet, setNoInternet] = useState(false);
@@ -32,7 +35,7 @@ const SynchData = (props: any) => {
     onConfirm: null as (() => void) | null,
   });
   const {user, dayCLoseButton, setDayCLoseButton} = useStore();
-
+  const appSettings = useStore(state => state.appSettings);
   const [isPrinting, setIsPrinting] = useState(false);
   const isPrintingRef = useRef(false);
   const [, forceUpdate] = useState({});
@@ -79,6 +82,26 @@ const SynchData = (props: any) => {
 
   useEffect(() => {
     if (isFocused) {
+      const isSantheEnabled = isSettingEnabled('SANTHE_MODULE_BUTTON', appSettings || []);
+
+      async function fetchSantheBills() {
+        const santheBills = await syncCounterBill(
+          'sante_bills',
+          'sante_items',
+          'sante_discounts',
+        );
+        setCounterBills(santheBills.length);
+        if (santheBills.length > 0 && dayCLoseButton) {
+          setDayCLoseButton(false);
+        }
+        setTotalBillAmount(
+          santheBills.reduce(
+            (acc: any, bill: any) => acc + bill.total_amount,
+            0,
+          ),
+        );
+      }
+      
       async function fetchMyAPI() {
         const counterBills = await syncCounterBill(
           'counter_bills',
@@ -97,7 +120,11 @@ const SynchData = (props: any) => {
         );
       }
 
-      fetchMyAPI();
+      if (isSantheEnabled) {
+        fetchSantheBills();
+      } else {
+        fetchMyAPI();
+      }
     }
   }, [isFocused]);
 

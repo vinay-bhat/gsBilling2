@@ -122,6 +122,7 @@ public class NGXBillingModule extends ReactContextBaseJavaModule {
       Double taxableData,
       Double taxAmount,
       ReadableArray cgstGroups,
+      Boolean showTax,
       Callback errorCallback,
       Callback successCallback) {
     try {
@@ -146,8 +147,9 @@ public class NGXBillingModule extends ReactContextBaseJavaModule {
       tp.setTextSize(20);
       tp.setColor(Color.BLACK);
       mBtp.setPrinterWidth(PrinterWidth.PRINT_WIDTH_48MM);
-
-      mBtp.addText("TAX INVOICE", Layout.Alignment.ALIGN_CENTER, tp);
+      if (showTax) {
+        mBtp.addText("TAX INVOICE", Layout.Alignment.ALIGN_CENTER, tp);
+      }
       mBtp.addText(title, Layout.Alignment.ALIGN_CENTER, tp);
       mBtp.addText(orgname, Layout.Alignment.ALIGN_CENTER, tp);
       mBtp.addText(address1, Layout.Alignment.ALIGN_CENTER, tp);
@@ -174,7 +176,9 @@ public class NGXBillingModule extends ReactContextBaseJavaModule {
         String name = map.getString("product_name");
         String hsnCode = map.getString("hsn_code");
         stringBuilder.append("" + name + "\n");
+        if (showTax && hsnCode != null && !hsnCode.isEmpty()) {
         stringBuilder.append("HSN Code: " + hsnCode + "\n");
+        }
         stringBuilder.append("\t\t\t\t\t" + quantity + "\t\t\t" + basic + "\t\t\t" + f.format(quantity * basic) + "\n");
         System.out.println("-------------___+++++__++______" + name);
 
@@ -184,10 +188,12 @@ public class NGXBillingModule extends ReactContextBaseJavaModule {
       // stringBuilder.append("Tot Items: 2 Amount: 66.50\n");
       // stringBuilder.append("Tot Qty :12 Vat Amt: 3.50\n");
       // stringBuilder.append(" -------------");
+      if (showTax) {
       stringBuilder.append("Tot Basic :" + f.format(totalBasic) + "\n");
       stringBuilder.append("Discount  :" + f.format(discountBasic) + "\n");
       stringBuilder.append("Taxable   :" + f.format(taxableData) + "\n");
       stringBuilder.append("Tax       :" + f.format(taxAmount) + "\n");
+      }
       stringBuilder.append(separator);
       stringBuilder.append("\n");
 

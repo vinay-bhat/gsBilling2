@@ -8,6 +8,7 @@ interface BillPackage {
   billData: any;
   items: any[];
   payments: any[];
+  type?: 'counter' | 'sante';
 }
 
 let queue: BillPackage[] = [];
@@ -57,15 +58,20 @@ async function processQueue() {
   processQueue();
 }
 
-function insertBillPackage({billData, items, payments}: BillPackage) {
+function insertBillPackage({billData, items, payments, type = 'counter'}: BillPackage) {
   return new Promise((resolve, reject) => {
+    const tables =
+      type === 'sante'
+        ? {bill: 'sante_bills', items: 'sante_items', payments: 'sante_discounts'}
+        : {bill: 'counter_bills', items: 'counter_items', payments: 'counter_payments'};
+
     db.transaction(
       (tx: any) => {
-        insertOne(tx, 'counter_bills', billData);
+        insertOne(tx, tables.bill, billData);
 
-        items?.forEach(item => insertOne(tx, 'counter_items', item));
+        items?.forEach(item => insertOne(tx, tables.items, item));
 
-        payments?.forEach(p => insertOne(tx, 'counter_payments', p));
+        payments?.forEach(p => insertOne(tx, tables.payments, p));
       },
       (err: any) => reject(err),
       () => resolve(true),

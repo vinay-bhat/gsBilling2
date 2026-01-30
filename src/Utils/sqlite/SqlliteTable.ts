@@ -58,12 +58,12 @@ export const tableArray = [
   {
     tableName: 'sante_bills',
     tableCreateSchema:
-      'CREATE TABLE IF NOT EXISTS sante_bills (bill_id INTEGER PRIMARY KEY AUTOINCREMENT, bill_no TEXT  NOT NULL, bill_date TEXT NOT NULL, bill_time TEXT NOT NULL, total_basic REAL NOT NULL, total_qty INTEGER NOT NULL, discount_amount REAL NOT NULL, taxable_amount REAL NOT NULL, tax_amount REAL NOT NULL, cgst_price REAL NOT NULL, sgst_price REAL NOT NULL, grand_total_amount REAL NOT NULL, payment_type TEXT NOT NULL, branch_name TEXT NOT NULL,sync_status TEXT) ',
+      'CREATE TABLE IF NOT EXISTS sante_bills (bill_id INTEGER, bill_no TEXT  NOT NULL, bill_date TEXT NOT NULL, bill_time TEXT NOT NULL, total_basic REAL NOT NULL, total_qty INTEGER NOT NULL, discount_amount REAL NOT NULL, taxable_amount REAL NOT NULL, tax_amount REAL NOT NULL, cgst_price REAL NOT NULL, sgst_price REAL NOT NULL, grand_total_amount REAL NOT NULL, payment_type TEXT NOT NULL, branch_name TEXT NOT NULL,sync_status TEXT) ',
   },
   {
     tableName: 'sante_items',
     tableCreateSchema:
-      'CREATE TABLE IF NOT EXISTS sante_items (item_id INTEGER PRIMARY KEY AUTOINCREMENT , item_name TEXT NOT NULL, item_tax_percent REAL NOT NULL, item_basic REAL NOT NULL, basic_tax REAL NOT NULL, cat_id INTEGER NOT NULL, item_qty INTEGER NOT NULL, item_price REAL NOT NULL, item_discount REAL NOT NULL, item_taxable REAL NOT NULL, item_discount_tax_amount REAL NOT NULL, bill_id INTEGER NOT NULL, bill_date TEXT NOT NULL, branch_name TEXT NOT NULL)',
+      'CREATE TABLE IF NOT EXISTS sante_items (item_id INTEGER , item_name TEXT NOT NULL, item_tax_percent REAL NOT NULL, item_basic REAL NOT NULL, basic_tax REAL NOT NULL, cat_id INTEGER NOT NULL, item_qty INTEGER NOT NULL, item_price REAL NOT NULL, item_discount REAL NOT NULL, item_taxable REAL NOT NULL, item_discount_tax_amount REAL NOT NULL, bill_id INTEGER NOT NULL, bill_date TEXT NOT NULL, branch_name TEXT NOT NULL)',
   },
   {
     tableName: 'sante_discounts',

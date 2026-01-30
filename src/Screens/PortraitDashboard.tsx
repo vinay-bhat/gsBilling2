@@ -230,34 +230,6 @@ const Portrait = (props: any) => {
         </View>
       ) : (
         <View style={portraitStyles.content}>
-          {appSettings &&
-          appSettings.length > 0 &&
-          isSettingEnabled('SANTHE_MODULE_BUTTON', appSettings) ? (
-            <View style={portraitStyles.headerSection}>
-              <View style={portraitStyles.santeButtonContainer}>
-                <TouchableOpacity
-                  style={[
-                    portraitStyles.santeButton,
-                    props.isSante && portraitStyles.santeButtonActive,
-                  ]}
-                  onPress={() => props.enableSante(props.isSante)}>
-                  <MaterialCommunityIcons
-                    name="shopping"
-                    size={20}
-                    color={props.isSante ? '#FFFFFF' : '#007AFF'}
-                  />
-                  <Text
-                    style={[
-                      portraitStyles.santeButtonText,
-                      props.isSante && portraitStyles.santeButtonTextActive,
-                    ]}>
-                    Sante
-                  </Text>
-                </TouchableOpacity>
-              </View>
-            </View>
-          ) : null}
-
           <View style={portraitStyles.productsContainer}>
             {props.products && props.products.length > 0 ? (
               <FlatList
@@ -479,6 +451,7 @@ const portraitStyles = StyleSheet.create({
     shadowOffset: {width: 0, height: 2},
     shadowOpacity: 0.1,
     shadowRadius: 4,
+    padding: 5,
   },
   santeButtonContainer: {
     padding: 16,
@@ -505,7 +478,7 @@ const portraitStyles = StyleSheet.create({
     marginLeft: 8,
   },
   santeButtonTextActive: {
-    color: '#FFFFFF',
+    color: '#007AFF',
   },
   productsContainer: {
     flex: 1,
