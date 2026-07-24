@@ -19,9 +19,7 @@ import {syncCounterBill} from '../Utils/synch';
 import {useIsFocused} from '@react-navigation/native';
 import NCModal from '../Modals/NC';
 import {db} from '../Utils/sqlite/Sqlitecreation';
-import {
-  isSettingEnabled,
-} from '../Utils/Common';
+import {isSettingEnabled} from '../Utils/Common';
 
 const {width} = Dimensions.get('window');
 
@@ -57,7 +55,10 @@ const BillReport: React.FC = () => {
 
   const {paymentList, ncModalData, setNcModalData} = useStore();
   const appSettings = useStore(state => state.appSettings);
-  const isSantheEnabled = isSettingEnabled('SANTHE_MODULE_BUTTON', appSettings || []);
+  const isSantheEnabled = isSettingEnabled(
+    'SANTHE_MODULE_BUTTON',
+    appSettings || [],
+  );
   const paymentModes = paymentList.map((item: any) => item.setting_name);
 
   const handleEditPayment = (bill: BillData) => {
@@ -320,7 +321,6 @@ const BillReport: React.FC = () => {
 
   useEffect(() => {
     if (isFocused) {
-      
       async function fetchSantheBills() {
         const fetchedSantheBills = await syncCounterBill(
           'sante_bills',
@@ -329,7 +329,7 @@ const BillReport: React.FC = () => {
         );
         setSantheBills(fetchedSantheBills);
         setBillData(fetchedSantheBills);
-        setLoading(false);        
+        setLoading(false);
       }
 
       async function fetchMyAPI() {
@@ -394,6 +394,11 @@ const BillReport: React.FC = () => {
     }
   };
 
+  const sortBillsByLatest = (bills: any[], idKey: 'bill_id' = 'bill_id') =>
+    [...bills].sort(
+      (a, b) => Number(b?.[idKey] ?? 0) - Number(a?.[idKey] ?? 0),
+    );
+
   const renderTableHeader = () => (
     <View style={styles.tableHeader}>
       <View style={[styles.headerCell, styles.billNumberHeader]}>
@@ -409,9 +414,9 @@ const BillReport: React.FC = () => {
         <Text style={styles.headerText}>Payment Mode</Text>
       </View>
       {!isSantheEnabled && (
-      <View style={[styles.headerCell, styles.editHeader]}>
-        <Text style={styles.headerText}>Edit</Text>
-      </View>
+        <View style={[styles.headerCell, styles.editHeader]}>
+          <Text style={styles.headerText}>Edit</Text>
+        </View>
       )}
     </View>
   );
@@ -507,7 +512,6 @@ const BillReport: React.FC = () => {
             </Text>
           </View>
         </View>
-       
       </View>
     );
   };
@@ -529,14 +533,11 @@ const BillReport: React.FC = () => {
         <View style={styles.tableContainer}>
           {renderTableHeader()}
           {counterBills.length > 0 ? (
-            counterBills
-              .sort((a, b) => b.invoice_no.localeCompare(a.invoice_no))
+            sortBillsByLatest(counterBills)
               .slice(0, 10)
               .map((item, index) => renderTableRow(item, index))
-          ) : 
-          santeBills.length > 0 ? (
-            santeBills
-              .sort((a, b) => b.bill_no.localeCompare(a.bill_no))
+          ) : santeBills.length > 0 ? (
+            sortBillsByLatest(santeBills)
               .slice(0, 10)
               .map((item, index) => renderSantheTableRow(item, index))
           ) : (

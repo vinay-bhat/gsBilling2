@@ -5,7 +5,7 @@
  * @format
  */
 
-import React, {useEffect, useState} from 'react';
+import React, {useEffect, useRef, useState} from 'react';
 import {
   ScrollView,
   StyleSheet,
@@ -25,7 +25,8 @@ import {NavigationContainer, useNavigation} from '@react-navigation/native';
 import {createStackNavigator} from '@react-navigation/stack';
 import {createDrawerNavigator, DrawerItemList} from '@react-navigation/drawer';
 import 'react-native-gesture-handler';
-import {removeSession} from './src/Utils/AsyncStorageFunctions';
+import {getSession, removeSession, PRINTER_TYPE_KEY} from './src/Utils/AsyncStorageFunctions';
+import {sendGetRequest} from './src/Utils/ApiMethods';
 import {tableArray} from './src/Utils/sqlite/SqlliteTable';
 import {truncateData} from './src/Utils/sqlite/SqliteDelete';
 //@ts-ignore
@@ -50,10 +51,13 @@ import SyncModal from './src/Modals/SyncModal';
 import useStore from './src/Redux/Store';
 import {initDBQueue} from './src/Utils/queue';
 import {isSettingEnabled} from './src/Utils/Common';
+import {setPrinterModuleFromType} from './src/Utils/printerModule';
 
 const {NGXBillingModule} = NativeModules;
 const {IminWhitelist} = NativeModules;
 const {IminiBillingModule} = NativeModules;
+
+import TestScreen from './src/Screens/Login/Test';
 
 // creating stack navigator
 const Stack = createStackNavigator();
@@ -66,9 +70,12 @@ function App(): JSX.Element {
   const [syncDone, setSyncDone] = useState(false);
   const user = useStore(state => state.user);
   const appSettings = useStore(state => state.appSettings);
+  const whitelistRan = useRef(false);
+
   useEffect(() => {
     creationSqlliteTable();
   }, []);
+
   async function whitelistApp() {
     try {
       const success = await IminWhitelist.addToWhitelist();
@@ -87,9 +94,66 @@ function App(): JSX.Element {
       }
     }
   }
+
   useEffect(() => {
-    whitelistApp();
-  }, []);
+    if (whitelistRan.current) {
+      return;
+    }
+
+    const resolvePrinterAndWhitelist = async () => {
+      let printerName = await AsyncStorage.getItem(PRINTER_TYPE_KEY);
+
+      if (printerName) {
+        setPrinterModuleFromType(printerName);
+      }
+
+      if (!printerName) {
+        const net = await NetInfo.fetch();
+        if (!net.isConnected) {
+          return;
+        }
+
+        let loginData = user;
+        if (
+          !loginData?.sales_urls?.[0]?.get_printer_details ||
+          !loginData?.branch
+        ) {
+          const session = await getSession('loginData');
+          if (!session) {
+            return;
+          }
+          loginData = JSON.parse(session);
+        }
+
+        const printerUrl = loginData?.sales_urls?.[0]?.get_printer_details;
+        if (!printerUrl || !loginData?.branch) {
+          return;
+        }
+
+        try {
+          const response = await sendGetRequest(
+            `${printerUrl}/${loginData.branch}`,
+          );
+          printerName = response?.[0]?.name ?? null;
+          if (printerName) {
+            await AsyncStorage.setItem(PRINTER_TYPE_KEY, printerName);
+            setPrinterModuleFromType(printerName);
+          }
+        } catch (_) {
+          return;
+        }
+      }
+
+      whitelistRan.current = true;
+
+      if (printerName === 'Imini') {
+        await whitelistApp();
+      }
+    };
+
+    resolvePrinterAndWhitelist();
+  }, [user]);
+
   useEffect(() => {
     const unsubscribe = NetInfo.addEventListener((state: any) => {
       setNoInternet(state.isConnected);

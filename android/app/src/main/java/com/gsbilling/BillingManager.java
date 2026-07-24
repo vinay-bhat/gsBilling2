@@ -24,6 +24,7 @@ public class BillingManager implements ReactPackage {
        modules.add(new TVSBillingModule(reactContext));
        modules.add(new UrovoBillingModule(reactContext));
        modules.add(new IminiBillingModule(reactContext));
+       modules.add(new NyxBillingModule(reactContext));
 
        return modules;
    }

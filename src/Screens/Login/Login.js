@@ -11,6 +11,12 @@ import {isItemPresent} from '../../Utils/sqlite/SqliteFetch';
 import SyncModal from '../../Modals/SyncModal';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import {deleteYesterdayDoneCounterBills} from '../../Utils/sqlite/SqliteDelete';
+
+const LOGIN_SKIP_URL_KEYS = new Set([
+  'day_closebuttonclick',
+  'Counter_day_smstrigger',
+]);
+
 export default function Login({navigation}) {
   const [userName, setUserName] = useState('');
   const [password, setPassword] = useState('');
@@ -91,6 +97,9 @@ export default function Login({navigation}) {
           const urls = response.sales_urls[0];
           for (const key in urls) {
             if (urls.hasOwnProperty(key)) {
+              if (LOGIN_SKIP_URL_KEYS.has(key)) {
+                continue;
+              }
               const url = urls[key];
               apiPromises.push(
                 await getInitialData(
@@ -139,7 +148,7 @@ export default function Login({navigation}) {
   };
 
   return (
-    <View>
+    <View style={{flex: 1}}>
       <>
         <SyncModal
           visible={true}

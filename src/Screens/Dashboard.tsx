@@ -20,19 +20,14 @@ import {
   getAsyncedData,
   getLastValues,
 } from '../Utils/sqlite/SqliteFetch';
-import {NativeModules, Button} from 'react-native';
-const {NGXBillingModule} = NativeModules;
-const {TVSBillingModule} = NativeModules;
-const {UrovoBillingModule} = NativeModules;
-const {IminiBillingModule} = NativeModules;
 import {requestMultiple, PERMISSIONS} from 'react-native-permissions';
 import {getSession} from '../Utils/AsyncStorageFunctions';
 import PortraitDashboard from './PortraitDashboard';
 import calculateCartValues from '../Services/discountHandler';
 import {queueDBInsert} from '../Utils/queue';
+import {ensurePrinterModuleLoaded, getPrinterModule} from '../Utils/printerModule';
 
 // Module-level flags to persist across component remounts
-let printerFetched = false;
 let paymentCredsFetched = false;
 
 const Dashboard = () => {
@@ -59,7 +54,6 @@ const Dashboard = () => {
   const [noSyncdata, setNoSyncData] = useState(false);
 
   const [orientation, setOrientation] = useState('LANDSCAPE');
-  const [printerDetails, setPrinterDetails] = useState(IminiBillingModule);
 
   const [normalCartValues, setNormalCartValues] = useState({
     OriginalTotal: '0.00',
@@ -93,6 +87,8 @@ const Dashboard = () => {
     setIsDiscountApplied,
     setPaymentCreds,
     cartMap,
+    setTokenNumber,
+    tokenNumber,
   } = useStore();
 
   const cartList: any = useMemo(() => Object.values(cartMap), [cartMap]);
@@ -202,33 +198,7 @@ const Dashboard = () => {
   }, [cartList, isDiscountApplied, discountType, selectedDiscount]);
 
   useEffect(() => {
-    if (printerFetched) {
-      return;
-    }
-
-    const getPrinter = async () => {
-      printerFetched = true;
-      const response = await getPrinterDetails();
-
-      switch (response[0]?.name) {
-        case 'Imini':
-          setPrinterDetails(IminiBillingModule);
-          break;
-        case 'NGX':
-          setPrinterDetails(NGXBillingModule);
-          break;
-        case 'TVS':
-          setPrinterDetails(TVSBillingModule);
-          break;
-        case 'Urovo':
-          setPrinterDetails(UrovoBillingModule);
-          break;
-        default:
-          setPrinterDetails(IminiBillingModule);
-          break;
-      }
-    };
-    getPrinter();
+    ensurePrinterModuleLoaded();
   }, []);
 
   useEffect(() => {
@@ -256,21 +226,6 @@ const Dashboard = () => {
       return response;
     } catch (error) {
       console.log('Error getting payment credentials:', error);
-      return null;
-    }
-  };
-
-  const getPrinterDetails = async () => {
-    try {
-      const response = await sendGetRequest(
-        `${user.sales_urls[0].get_printer_details}/${user.branch}`,
-      );
-
-      console.log('response getPrinterDetails', response);
-
-      return response;
-    } catch (error) {
-      console.log('error getPrinterDetails', error);
       return null;
     }
   };
@@ -688,7 +643,7 @@ const Dashboard = () => {
     });
 
     /** ✅ 7️⃣ Print Immediately (FAST ✅) */
-    printerDetails.santhePrint(
+    getPrinterModule().santhePrint(
       outletDetails?.branch_title,
       outletDetails?.org_name,
       outletDetails?.gstin_no,
@@ -1284,7 +1239,7 @@ const Dashboard = () => {
       bill_no: '0',
       bill_date: '0',
       bill_time: '0',
-      invoice_no: `${user.branch}${financialYear}${parseInt(in_no) + 1}`,
+      invoice_no: `${user.branch}${financialYear}-${parseInt(in_no) + 1}`,
       invoice_date: dateISO,
       invoice_time: time,
       edit_date: '0',
@@ -1371,7 +1326,7 @@ const Dashboard = () => {
       const data = transformItem2(
         item,
         billData.bill_id,
-        item_id + index,
+        parseInt(item_id) + index,
         discountType,
         selectedDiscount,
         isDiscountApplied,
@@ -1406,8 +1361,103 @@ const Dashboard = () => {
       });
     }
 
+    const groupedItemsByToken = cartList.reduce((acc: any, item: any) => {
+      if (item?.token === '1') {
+        const {tokengroup} = item;
+        if (!acc[tokengroup]) {
+          acc[tokengroup] = [];
+        }
+        acc[tokengroup].push(item);
+      }
+      return acc;
+    }, {});
+
+    const processTokenGroup = (
+      groupKey: string,
+      groupItems: any[],
+      remainingGroups: string[],
+    ) => {
+      const singleGroupData = {[groupKey]: groupItems};
+
+      Alert.alert(
+        'Alert',
+        `Do you want to print KOT?`,
+        [
+          {
+            text: 'Cancel',
+            onPress: () => {
+              console.log(`Cancel Pressed for ${groupKey}`);
+              // Process next group if available
+              if (remainingGroups.length > 0) {
+                const nextGroupKey = remainingGroups[0];
+                const nextGroupItems = groupedItemsByToken[nextGroupKey];
+                const nextRemainingGroups = remainingGroups.slice(1);
+                processTokenGroup(
+                  nextGroupKey,
+                  nextGroupItems,
+                  nextRemainingGroups,
+                );
+              }
+            },
+            style: 'cancel',
+          },
+          {
+            text: 'OK',
+            onPress: () => {
+              getPrinterModule().onCounterBillGenerateWithToken(
+                outletDetails?.branch_title,
+                outletDetails?.org_name,
+                outletDetails?.gstin_no,
+                outletDetails?.address1,
+                outletDetails?.address2,
+                outletDetails?.cin_no,
+                groupItems, // Send only current group items
+                outletDetails?.branch,
+                billData.bill_id.toString(),
+                `${user.branch}${financialYear}-${parseInt(in_no) + 1}`,
+                date,
+                time,
+                normalCartValues?.CartTotalBasic,
+                normalCartValues?.CartTotal,
+                normalCartValues?.CartTotalBasic,
+                normalCartValues?.TotalTaxApplied,
+                groups,
+                JSON.stringify(singleGroupData), // Send only current group
+                tokenNumber,
+                custInfo?.name,
+                custInfo?.mobile,
+                custInfo?.gstNumber,
+                showTax,
+                (err: any) => {
+                  console.log(err, 'error message !!!!!!!!!!!!!!!!');
+                },
+                (msg: any) => {
+                  console.log(msg, 'success message !!!!!!!!!!!!!!!!');
+                },
+              );
+
+              setTokenNumber(tokenNumber + 1);
+
+              // Process next group if available
+              if (remainingGroups.length > 0) {
+                const nextGroupKey = remainingGroups[0];
+                const nextGroupItems = groupedItemsByToken[nextGroupKey];
+                const nextRemainingGroups = remainingGroups.slice(1);
+                processTokenGroup(
+                  nextGroupKey,
+                  nextGroupItems,
+                  nextRemainingGroups,
+                );
+              }
+            },
+          },
+        ],
+        {cancelable: false},
+      );
+    };
+
     /** ✅ 7️⃣ Print Immediately (FAST ✅) */
-    printerDetails.onCounterBillGenerate(
+    getPrinterModule().onCounterBillGenerate(
       outletDetails?.branch_title,
       outletDetails?.org_name,
       outletDetails?.gstin_no,
@@ -1440,6 +1490,14 @@ const Dashboard = () => {
           items: Items,
           payments,
         });
+        if (Object.keys(groupedItemsByToken).length !== 0) {
+          const groupKeys = Object.keys(groupedItemsByToken);
+          const firstGroupKey = groupKeys[0];
+          const firstGroupItems = groupedItemsByToken[firstGroupKey];
+          const remainingGroups = groupKeys.slice(1);
+
+          processTokenGroup(firstGroupKey, firstGroupItems, remainingGroups);
+        }
       },
     );
 

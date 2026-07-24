@@ -1,5 +1,7 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
+export const PRINTER_TYPE_KEY = '@printerType';
+
 /* Session Storage */
 export async function setSession(key, value) {
 let data 

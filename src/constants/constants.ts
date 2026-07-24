@@ -4,4 +4,6 @@ const fonts = {
   NunitoSansLight: "NunitoSans-Light",
 };
 
-export { fonts };
+const APP_VERSION = '1.0';
+
+export { fonts, APP_VERSION };
