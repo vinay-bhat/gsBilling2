@@ -379,6 +379,125 @@ export const inserData = async (tableName: string, value: any) => {
   }
 };
 
+export const updateData = async (
+  tableName: string,
+  value: any,
+): Promise<void> => {
+  let query = '';
+  let data: any[] = [];
+
+  switch (tableName) {
+    case 'product_category':
+      query = `UPDATE product_category SET branch = ?, combination = ?, combo_qty_limit = ?, cr_discount = ?, discount = ?, pr_cat_code = ?, pr_cat_name = ?, status = ? WHERE pr_cat_id = ?`;
+      data = [
+        value.branch,
+        value.combination,
+        value.combo_qty_limit,
+        value.cr_discount,
+        value.discount,
+        value.pr_cat_code,
+        value.pr_cat_name,
+        value.status,
+        value.pr_cat_id,
+      ];
+      break;
+    case 'products':
+      query = `UPDATE products SET product_name = ?, hsn_code = ?, product_no = ?, product_code = ?, sorting_order = ?, uom = ?, basic_rate = ?, basic_tax_percent = ?, sgst_tax = ?, sgst_tax_amount = ?, cgst_tax = ?, cgst_tax_amount = ?, price = ?, discount_perc = ?, product_stock = ?, product_status = ?, pr_cat_id = ?, branch = ?, token = ?, tokengroup = ?, social_order = ?, sales_item_type = ?, combination = ?, product_type = ?, qty_sales_type = ?, stock_limit = ?, barcode_number = ?, product_image_path = ? WHERE pr_id = ?`;
+      data = [
+        value.product_name,
+        value.hsn_code,
+        value.product_no,
+        value.product_code,
+        value.sorting_order,
+        value.uom,
+        value.basic_rate,
+        value.basic_tax_percent,
+        value.sgst_tax,
+        value.sgst_tax_amount,
+        value.cgst_tax,
+        value.cgst_tax_amount,
+        value.price,
+        value.discount_perc,
+        value.product_stock,
+        value.product_status,
+        value.pr_cat_id,
+        value.branch,
+        value.token,
+        value.tokengroup,
+        value.social_order,
+        value.sales_item_type,
+        value.combination,
+        value.product_type,
+        value.qty_sales_type,
+        value.stock_limit,
+        value.barcode_number,
+        value.product_image_path,
+        value.pr_id,
+      ];
+      break;
+    case 'application_settings':
+      query = `UPDATE application_settings SET setting_name = ?, setting_access = ?, setting_type = ?, setting_title = ?, status = ?, branch = ? WHERE app_setting_id = ?`;
+      data = [
+        value.setting_name,
+        value.setting_access,
+        value.setting_type,
+        value.setting_title,
+        value.status,
+        value.branch,
+        value.app_setting_id,
+      ];
+      break;
+    case 'outlet_details':
+      query = `UPDATE outlet_details SET branch_title = ?, branch_slno = ?, invoice_prefix = ?, org_name = ?, land_no = ?, mobile = ?, email_id = ?, gstin_no = ?, address1 = ?, address2 = ?, website_name = ?, branch = ?, cin_no = ?, userId = ?, status = ? WHERE outId = ?`;
+      data = [
+        value.branch_title,
+        value.branch_slno,
+        value.invoice_prefix,
+        value.org_name,
+        value.land_no,
+        value.mobile,
+        value.email_id,
+        value.gstin_no,
+        value.address1,
+        value.address2,
+        value.website_name,
+        value.branch,
+        value.cin_no,
+        value.userId,
+        value.status,
+        value.outId,
+      ];
+      break;
+    default:
+      console.warn(`updateData: unsupported table ${tableName}`);
+      return;
+  }
+
+  try {
+    await new Promise<void>((resolve, reject) => {
+      db.transaction((tx: any) => {
+        tx.executeSql(
+          query,
+          data,
+          (_tx: any, results: any) => {
+            if (results.rowsAffected > 0) {
+              resolve();
+            } else {
+              reject(new Error(`Update Failed: No rows affected in ${tableName}`));
+            }
+          },
+          (_tx: any, error: any) => {
+            reject(error);
+          },
+        );
+      });
+    });
+  } catch (error) {
+    console.error(`updateData failed for ${tableName}`, error);
+    throw error;
+  }
+};
+
 export const updateStatusById = async (
   tableName: string,
   id: number,

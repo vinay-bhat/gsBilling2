@@ -15,7 +15,17 @@ import {deleteYesterdayDoneCounterBills} from '../../Utils/sqlite/SqliteDelete';
 const LOGIN_SKIP_URL_KEYS = new Set([
   'day_closebuttonclick',
   'Counter_day_smstrigger',
+  'send_sms',
+  'Counter_data_synch',
+  'get_billdetails',
 ]);
+
+const LOGIN_MASTER_SYNC_KEYS = [
+  'products',
+  'product_catgory',
+  'application_settings',
+  'outlet_details',
+];
 
 export default function Login({navigation}) {
   const [userName, setUserName] = useState('');
@@ -59,6 +69,35 @@ export default function Login({navigation}) {
     }
   };
 
+  const syncInitialUrl = async (key, url, branch) => {
+    if (!url || LOGIN_SKIP_URL_KEYS.has(key)) {
+      return;
+    }
+    if (
+      typeof url === 'string' &&
+      (url.includes('callback') || url.includes('app_data_synching'))
+    ) {
+      return;
+    }
+    return getInitialData(
+      key,
+      url,
+      saveCategories,
+      saveProducts,
+      saveAppSettings,
+      saveMastersCreationData,
+      setDiscountList,
+      setDiscountType,
+      isConnected,
+      branch,
+      setPaymentList,
+      setSanteData,
+      setSanteDiscountRatio,
+      setOutletDetails,
+      setUserList,
+    );
+  };
+
   const onLogin = async () => {
     console.log('Internet', isConnected);
     if (!isConnected) {
@@ -70,7 +109,13 @@ export default function Login({navigation}) {
       const URL =
         // "https://gspos.in/Testing/index.php/App_controller/login_authenticate";
         // "https://gspos.in/SalesMaster/index.php/App_controller/login_authenticate";
-        'https://gspos.in/SalesMaster/index.php/Counter_billingapp_controller/login_authenticate';
+        // main url
+        // 'https://gspos.in/SalesMaster/index.php/Counter_billingapp_controller/login_authenticate';
+
+        // 'https://ashtagram.in/Counter-Backend/api/gsbilling/login_authenticate';
+        // 'https://gsonlinesolutions.com/Counter-Backend/api/gsbilling/login_authenticate';
+        'https://by2coffeestore.com/Counter-Backend/api/gsbilling/login_authenticate';
+
       // 'https://gspos.in/Testing/index.php/Counter_billingapp_controller/login_authenticate';
       const payload = {
         username: userName,
@@ -79,7 +124,6 @@ export default function Login({navigation}) {
       try {
         const response = await sendPostRequest(URL, payload);
         console.log('Login Response data:', response);
-        const apiPromises = [];
         if (response.status == 'success') {
           // Delete "Done" records from counter_bills for all dates except today
           try {
@@ -94,39 +138,32 @@ export default function Login({navigation}) {
           saveUserData(response);
           console.log(response, 'response123');
           setSession('loginData', response);
-          const urls = response.sales_urls[0];
-          for (const key in urls) {
-            if (urls.hasOwnProperty(key)) {
-              if (LOGIN_SKIP_URL_KEYS.has(key)) {
-                continue;
+          const urls = response.sales_urls[0] || {};
+          const branch = response.branch;
+
+          // Sync masters first: products, categories, settings, outlet
+          // Each upserts local SQLite and POSTs callback with { data: [ids] }
+          for (const key of LOGIN_MASTER_SYNC_KEYS) {
+            if (urls[key]) {
+              try {
+                await syncInitialUrl(key, urls[key], branch);
+              } catch (error) {
+                console.warn(`⚠️ Master sync failed: ${key}`, error);
               }
-              const url = urls[key];
-              apiPromises.push(
-                await getInitialData(
-                  key,
-                  url,
-                  saveCategories,
-                  saveProducts,
-                  saveAppSettings,
-                  saveMastersCreationData,
-                  setDiscountList,
-                  setDiscountType,
-                  isConnected,
-                  response.branch,
-                  setPaymentList,
-                  setSanteData,
-                  setSanteDiscountRatio,
-                  setOutletDetails,
-                  setUserList,
-                ),
-              );
             }
           }
-          const results = await Promise.allSettled(apiPromises);
+
+          // Sync remaining sales_urls
+          const remainingKeys = Object.keys(urls).filter(
+            key => !LOGIN_MASTER_SYNC_KEYS.includes(key),
+          );
+          const results = await Promise.allSettled(
+            remainingKeys.map(key => syncInitialUrl(key, urls[key], branch)),
+          );
           results.forEach((result, idx) => {
             if (result.status === 'rejected') {
               console.warn(
-                `⚠️ API failed: ${Object.keys(urls)[idx]}`,
+                `⚠️ API failed: ${remainingKeys[idx]}`,
                 result.reason,
               );
             }

@@ -16,9 +16,8 @@ import SyncModal from '../Modals/SyncModal';
 import CustomAlert from '../Modals/CustomAlert';
 import {useIsFocused} from '@react-navigation/native';
 import {sendPostRequest} from '../Utils/ApiMethods';
-import {
-  isSettingEnabled,
-} from '../Utils/Common';
+import {isSettingEnabled} from '../Utils/Common';
+import {exportDatabase} from '../Utils/exportDatabase';
 
 const SynchData = (props: any) => {
   const [noInternet, setNoInternet] = useState(false);
@@ -82,7 +81,10 @@ const SynchData = (props: any) => {
 
   useEffect(() => {
     if (isFocused) {
-      const isSantheEnabled = isSettingEnabled('SANTHE_MODULE_BUTTON', appSettings || []);
+      const isSantheEnabled = isSettingEnabled(
+        'SANTHE_MODULE_BUTTON',
+        appSettings || [],
+      );
 
       async function fetchSantheBills() {
         const santheBills = await syncCounterBill(
@@ -101,7 +103,7 @@ const SynchData = (props: any) => {
           ),
         );
       }
-      
+
       async function fetchMyAPI() {
         const counterBills = await syncCounterBill(
           'counter_bills',
@@ -137,17 +139,50 @@ const SynchData = (props: any) => {
         setIsLoading,
         user,
         setSyncDone,
-        (success: boolean, results: any) => {
+        async (success: boolean, results: any) => {
           console.log('Sync complete', success, results);
-          if (success) {
-            setCounterBills(0);
+
+          // Always re-check pending bills from local DB
+          const isSantheEnabled = isSettingEnabled(
+            'SANTHE_MODULE_BUTTON',
+            appSettings || [],
+          );
+          const pendingBills = isSantheEnabled
+            ? await syncCounterBill(
+                'sante_bills',
+                'sante_items',
+                'sante_discounts',
+              )
+            : await syncCounterBill(
+                'counter_bills',
+                'counter_items',
+                'counter_payments',
+              );
+          setCounterBills(pendingBills.length);
+
+          if (success && pendingBills.length === 0) {
             setDayCLoseButton(true);
             setIsLoading(false);
+            setSyncErr(false);
             showAlert('Complete', 'Sync complete', 'success');
           } else {
-            showAlert('Failed', 'Sync failed', 'error');
-            setIsLoading(false);
             setDayCLoseButton(false);
+            setIsLoading(false);
+            // Keep internet modal closed — show only the sync result alert
+            if (results?.errors?.includes('No internet connection')) {
+              setSyncErr(true);
+            } else {
+              setSyncErr(false);
+              // Backup local DB when sync fails so data can be recovered
+              await exportDatabase({silent: true});
+              showAlert(
+                'Failed',
+                pendingBills.length > 0
+                  ? `Sync incomplete. Pending bills: ${pendingBills.length}`
+                  : 'Sync failed',
+                'error',
+              );
+            }
           }
         },
       );
@@ -194,16 +229,9 @@ const SynchData = (props: any) => {
 
   const dayCloseHandler = async () => {
     debouncedSynchHandler(async () => {
-      const response = await sendPostRequest(
-        user.sales_urls[0].day_closebuttonclick,
-      );
+      const response = await sendPostRequest(user.sales_urls[0].send_sms);
       if (response) {
-        showAlert(
-          'Success',
-          'Day Close successful, \n\nTotal Bill Amount: ' +
-            response.total_sales,
-          'success',
-        );
+        showAlert('Success', 'Day Close successful', 'success');
         setDayCLoseButton(false);
         setSyncDone(true);
         setSyncErr(false);
@@ -211,7 +239,7 @@ const SynchData = (props: any) => {
         showAlert('Failed', 'Day Close failed', 'error');
         setDayCLoseButton(true);
         setSyncDone(false);
-        setSyncErr(true);
+        setSyncErr(false);
       }
     });
   };

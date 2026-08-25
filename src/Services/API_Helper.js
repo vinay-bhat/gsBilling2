@@ -4,7 +4,54 @@ import {
   getTotalItemCount,
   isItemPresent,
 } from "../Utils/sqlite/SqliteFetch";
-import { inserData } from "../Utils/sqlite/SqliteInsert";
+import { inserData, updateData } from "../Utils/sqlite/SqliteInsert";
+
+/**
+ * Backend marks records synced via callback, so GET APIs only return
+ * new/updated rows (or all rows on a fresh device). Empty [] means
+ * nothing to write locally and callback must NOT be called.
+ */
+const sendSyncCallback = async (callBackUrl, ids) => {
+  if (!callBackUrl || !ids || ids.length === 0) {
+    return;
+  }
+  try {
+    const payload = { data: ids };
+    const res = await sendPostRequest(callBackUrl, payload);
+    console.log("Sync callback success", callBackUrl, payload, res);
+  } catch (e) {
+    console.error("Sync callback error", callBackUrl, e?.message || e);
+  }
+};
+
+const hasApiValues = (list) => Array.isArray(list) && list.length > 0;
+
+const upsertAndCollectIds = async ({ items, tableName, idKey }) => {
+  if (!hasApiValues(items)) {
+    return [];
+  }
+  const syncedIds = [];
+  await Promise.all(
+    items.map(async (element) => {
+      try {
+        const id = element[idKey];
+        if (id === undefined || id === null || id === "") {
+          return;
+        }
+        const isPresent = await isItemPresent(tableName, idKey, id);
+        if (!isPresent) {
+          await inserData(tableName, element);
+        } else {
+          await updateData(tableName, element);
+        }
+        syncedIds.push(id);
+      } catch (e) {
+        console.error(`Error upserting ${tableName}:`, e?.message || e);
+      }
+    })
+  );
+  return syncedIds;
+};
 
 export const getInitialData = async (
   key,
@@ -24,6 +71,7 @@ export const getInitialData = async (
 ) => {
   return new Promise(async (resolve, reject) => {
     let response = null;
+    let callBack = "";
 
     let discountType = "";
 
@@ -47,64 +95,30 @@ export const getInitialData = async (
     if (response !== null) {
       switch (key) {
         case "application_settings":
-          // Perform action for case1
-          // saveAppSettings(response.Details)
           if (isInternet) {
-            if (response.Details && response.Details.length > 0) {
-              const settings = [];
-              // const totalItemCount = await getTotalItemCount(key);
+            // API returns only new/updated settings; [] = use local DB only
+            if (hasApiValues(response.Details)) {
+              const settings = await upsertAndCollectIds({
+                items: response.Details,
+                tableName: "application_settings",
+                idKey: "app_setting_id",
+              });
 
-              // if (response.Details.length > totalItemCount) {
-              await Promise.all(
-                response.Details.map(async (element) => {
-                  try {
-                    const isPresent = await isItemPresent(
-                      "application_settings",
-                      "app_setting_id",
-                      element.app_setting_id
-                    );
-                    if (!isPresent) {
-                      inserData("application_settings", element);
-                      settings.push({
-                        branch: branch,
-                        app_setting_id: element.app_setting_id,
-                      });
-                    } else {
-                      // console.error('present');
-                    }
-                  } catch (e) {
-                    console.error("Error:", e.message);
-                  }
-                })
-              );
-
-              const callBack = url.replace(
+              callBack = url.replace(
                 `Get_application_setting/${branch}`,
-                "callback_application_setting"
+                `callback_application_setting/${branch}`
               );
-
-              if (callBack !== "" && settings.length > 0) {
-                // const res = await sendPostRequest(callBack, settings)
-                console.log("application_settings CallBack", settings, url);
-              }
-              segregateAppSettings(
-                response.Details,
-                setDiscountType,
-                saveAppSettings,
-                setPaymentList,
-                setSanteDiscountRatio
-              );
-            } else {
-              response = await getDataFromDb(key);
-
-              segregateAppSettings(
-                response,
-                setDiscountType,
-                saveAppSettings,
-                setPaymentList,
-                setSanteDiscountRatio
-              );
+              // Callback only for successfully added/updated ids
+              await sendSyncCallback(callBack, settings);
             }
+
+            segregateAppSettings(
+              await getDataFromDb(key),
+              setDiscountType,
+              saveAppSettings,
+              setPaymentList,
+              setSanteDiscountRatio
+            );
           } else {
             segregateAppSettings(
               response,
@@ -214,95 +228,50 @@ export const getInitialData = async (
 
           break;
         case "outlet_details":
-          console.log(response.data, "inside outlet");
           if (isInternet) {
-            if (response.data && response.data.length > 0) {
-              const outlets = [];
-              await Promise.all(
-                response.data.map(async (element) => {
-                  console.log(element, "outletsssss");
-                  try {
-                    const isPresent = await isItemPresent(
-                      "outlet_details",
-                      "outId",
-                      element.outId
-                    );
-                    // outlets.push({ branch: branch, outId: element.outId });
+            // API returns only new/updated outlets; [] = keep local only
+            if (hasApiValues(response.data)) {
+              const outlets = await upsertAndCollectIds({
+                items: response.data,
+                tableName: "outlet_details",
+                idKey: "outId",
+              });
 
-                    if (!isPresent) {
-                      inserData("outlet_details", element);
-                      outlets.push({ branch: branch, outId: element.outId });
-                    } else {
-                      // console.error('present');
-                    }
-                  } catch (e) {
-                    console.error("Error:", e.message);
-                  }
-                })
+              callBack = url.replace(
+                `Get_outlet_deatils/${branch}`,
+                `callback_outlet_deatils/${branch}`
               );
-
-              if (outlets.length > 0) {
-                const callBack = url.replace(
-                  `Get_outlet_deatils/${branch}`,
-                  "callback_outlet_deatils"
-                );
-                // const res = await sendPostRequest(callBack, outlets)
-                // console.log('outlet_details callback:', callBack, outlets, res);
-              }
-              setOutletDetails(response.data[0]);
+              await sendSyncCallback(callBack, outlets);
             }
+
+            const localOutlets = await getDataFromDb(key);
+            if (localOutlets.length > 0) {
+              setOutletDetails(localOutlets[0]);
+            }
+          } else if (response?.length > 0) {
+            setOutletDetails(response[0]);
           }
 
           break;
 
         case "product_catgory":
           if (isInternet) {
-            if (response.data && response.data.length > 0) {
-              const categories = [];
-              // await truncateData("product_category")
-              // response.data.forEach(element => {
-              //   inserData("product_category", element)
-              //   categories.push({ pr_cat_id: element.pr_cat_id, branch: element.branch })
+            // API returns only new/updated categories; [] = keep local only
+            if (hasApiValues(response.data)) {
+              const categories = await upsertAndCollectIds({
+                items: response.data,
+                tableName: "product_category",
+                idKey: "pr_cat_id",
+              });
 
-              // });
-              await Promise.all(
-                response.data.map(async (element) => {
-                  try {
-                    const isPresent = await isItemPresent(
-                      "product_category",
-                      "pr_cat_id",
-                      element.pr_cat_id
-                    );
-                    if (!isPresent) {
-                      inserData("product_category", element);
-                      categories.push({
-                        branch: branch,
-                        pr_cat_id: element.pr_cat_id,
-                      });
-                    } else {
-                      // console.error('present');
-                    }
-                  } catch (e) {
-                    console.error("Error:", e.message);
-                  }
-                })
+              callBack = url.replace(
+                `Get_product_category/${branch}`,
+                `callback_product_category/${branch}`
               );
-
-              if (categories.length > 0) {
-                const callBack = url.replace(
-                  `Get_product_category/${branch}`,
-                  "callback_product_category"
-                );
-
-                // const res = await sendPostRequest(callBack, categories)
-                // console.log("product_category CallBack", res, categories);
-              }
-
-              saveCategories(await getDataFromDb(key));
-            } else {
-              response = await getDataFromDb(key);
-              saveCategories(response);
+              await sendSyncCallback(callBack, categories);
             }
+
+            saveCategories(await getDataFromDb(key));
           } else {
             saveCategories(response);
           }
@@ -311,50 +280,23 @@ export const getInitialData = async (
 
         case "products":
           if (isInternet) {
-            if (response.data && response.data.length > 0) {
-              // await truncateData("products")
-              const produts = [];
-              // const totalItemCount = await getTotalItemCount(key);
-              // console.error('products present 1', totalItemCount);
-              // if (response.data.length > totalItemCount) {
-              // console.log("API CALL",response.data);
-              await Promise.all(
-                response.data.map(async (element) => {
-                  try {
-                    const isPresent = await isItemPresent(
-                      "products",
-                      "pr_id",
-                      element.pr_id
-                    );
+            // API returns only new/updated products; [] = keep local only
+            if (hasApiValues(response.data)) {
+              const products = await upsertAndCollectIds({
+                items: response.data,
+                tableName: "products",
+                idKey: "pr_id",
+              });
 
-                    if (!isPresent) {
-                      inserData("products", element);
-                      produts.push({ branch: branch, pr_id: element.pr_id });
-                    } else {
-                      // console.error('present');
-                    }
-                  } catch (e) {
-                    console.error("Error:", e.message);
-                  }
-                })
+              callBack = url.replace(
+                `Get_product/${branch}`,
+                `callback_product/${branch}`
               );
 
-              callBack = url
-                .replace("Get_product", "callback_product")
-                .replace("/TM5", "");
-
-              if (callBack !== "" && produts.length > 0) {
-                console.log("feedback", produts, callBack);
-                // const res = await sendPostRequest(callBack, produts)
-              }
-
-              saveProducts(await getDataFromDb(key));
-              // console.log("feedback", res, callBack);
-            } else {
-              response = await getDataFromDb(key);
-              console.error("Producrs present", response.length);
-              saveProducts(response);
+              await sendSyncCallback(callBack, products);
             }
+
+            saveProducts(await getDataFromDb(key));
           } else {
             saveProducts(response);
           }
@@ -473,6 +415,9 @@ const getDataFromDb = async (key) => {
       break;
     case "application_settings":
       table = "application_settings";
+      break;
+    case "outlet_details":
+      table = "outlet_details";
       break;
     case "masters_creation":
       table = "masters_creation";

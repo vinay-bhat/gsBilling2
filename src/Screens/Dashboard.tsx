@@ -25,7 +25,10 @@ import {getSession} from '../Utils/AsyncStorageFunctions';
 import PortraitDashboard from './PortraitDashboard';
 import calculateCartValues from '../Services/discountHandler';
 import {queueDBInsert} from '../Utils/queue';
-import {ensurePrinterModuleLoaded, getPrinterModule} from '../Utils/printerModule';
+import {
+  ensurePrinterModuleLoaded,
+  getPrinterModule,
+} from '../Utils/printerModule';
 
 // Module-level flags to persist across component remounts
 let paymentCredsFetched = false;
@@ -496,7 +499,11 @@ const Dashboard = () => {
     const santheSetting = appSettings.find(
       (setting: any) => setting.setting_name === 'HSN_DISPLAY_OPTION',
     );
-    if (santheSetting?.setting_access === '1') showTax = true;
+    if (
+      santheSetting?.setting_access === '1' ||
+      santheSetting?.setting_access === 1
+    )
+      showTax = true;
 
     /** ✅ 2️⃣ Get time + totals */
     const {totalAmt, disAmt, finalWithTax, discount} = getCartTotal2();
@@ -1189,8 +1196,16 @@ const Dashboard = () => {
     const santheSetting = appSettings.find(
       (setting: any) => setting.setting_name === 'HSN_DISPLAY_OPTION',
     );
-    if (santheSetting?.setting_access === '1') showTax = true;
-
+    if (
+      santheSetting?.setting_access === '1' ||
+      santheSetting?.setting_access === 1
+    )
+      showTax = true;
+    console.log(
+      'santheSetting',
+      santheSetting,
+      typeof santheSetting?.setting_access,
+    );
     /** ✅ 2️⃣  Get time + totals */
     const {date, time, dateISO} = getCurrentDatTime();
     const {totalAmt, disAmt, finalWithTax, discount, totalBasic} =
@@ -1311,6 +1326,7 @@ const Dashboard = () => {
     let payments: any[] = [];
 
     let group_to_values = cartList.reduce(function (obj: any, item: any) {
+      console.log('item', item);
       obj[item.cgst_tax] = obj[item.cgst_tax] || [];
       obj[item.cgst_tax].push(item.cgst_tax_amount * item.qty);
       return obj;
@@ -1321,6 +1337,9 @@ const Dashboard = () => {
         amount: group_to_values[key].reduce((a: any, b: any) => a + b, 0),
       };
     });
+
+    console.log('groups', groups);
+    console.log('normalCartValues', normalCartValues);
 
     cartList.forEach((item: any, index: number) => {
       const data = transformItem2(
@@ -1336,15 +1355,21 @@ const Dashboard = () => {
 
     const paymentList = [];
     if (paymentType.setting_name === 'MULTI') {
+      let paymentIndex = 0;
       Object.entries(multiPayment).forEach(([k, v]: any) => {
         if (+v !== 0) {
           payments.push({
-            payment_id: parseInt(payment_id) + 1,
+            payment_id: parseInt(payment_id) + 1 + paymentIndex,
             bill_id: billData.bill_id,
             payment_types: 'MULTI',
             multi_payment: +v,
             payment_status: 'pending',
+            payment_date: date,
+            branch: user.branch,
+            user_name: user.useid,
+            paid_amount: 0,
           });
+          paymentIndex += 1;
         }
       });
     } else {

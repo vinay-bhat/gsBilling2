@@ -25,7 +25,11 @@ import {NavigationContainer, useNavigation} from '@react-navigation/native';
 import {createStackNavigator} from '@react-navigation/stack';
 import {createDrawerNavigator, DrawerItemList} from '@react-navigation/drawer';
 import 'react-native-gesture-handler';
-import {getSession, removeSession, PRINTER_TYPE_KEY} from './src/Utils/AsyncStorageFunctions';
+import {
+  getSession,
+  removeSession,
+  PRINTER_TYPE_KEY,
+} from './src/Utils/AsyncStorageFunctions';
 import {sendGetRequest} from './src/Utils/ApiMethods';
 import {tableArray} from './src/Utils/sqlite/SqlliteTable';
 import {truncateData} from './src/Utils/sqlite/SqliteDelete';
@@ -44,14 +48,13 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import SynchData from './src/Screens/SynchData';
 import BillReport from './src/Screens/BillReport';
 import NetInfo from '@react-native-community/netinfo';
-import RNFS from 'react-native-fs';
-
 import {onSync, syncCounterBill} from './src/Utils/synch';
 import SyncModal from './src/Modals/SyncModal';
 import useStore from './src/Redux/Store';
 import {initDBQueue} from './src/Utils/queue';
 import {isSettingEnabled} from './src/Utils/Common';
 import {setPrinterModuleFromType} from './src/Utils/printerModule';
+import {exportDatabase} from './src/Utils/exportDatabase';
 
 const {NGXBillingModule} = NativeModules;
 const {IminWhitelist} = NativeModules;
@@ -171,18 +174,6 @@ function App(): JSX.Element {
   // useEffect(() => {
   //   IminiBillingModule.initPrewarm();
   // }, []);
-
-  const exportDatabase = async () => {
-    const dbPath = '/data/data/com.gsbilling/databases/pos.db';
-    const destPath = `${RNFS.DownloadDirectoryPath}/pos_exported.db`;
-
-    try {
-      await RNFS.copyFile(dbPath, destPath);
-      console.log('Database copied to:', destPath);
-    } catch (error) {
-      console.error('Error copying DB:', error);
-    }
-  };
 
   const DrawerNavigation = () => {
     const navigation = useNavigation();
@@ -328,7 +319,7 @@ function App(): JSX.Element {
           </View>
           <View style={styles.versionContainer}>
             <TouchableWithoutFeedback onPress={exportDatabase}>
-              <Text style={styles.versionText}>Version 1.8</Text>
+              <Text style={styles.versionText}>Version 1.8ast1</Text>
             </TouchableWithoutFeedback>
           </View>
           {appSettings &&
